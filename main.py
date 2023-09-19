@@ -4,14 +4,14 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.progressbar import ProgressBar
 from threading import Thread
-from phub import Client, Quality
+
 
 class MyBoxLayout(BoxLayout):
 
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
         self.orientation = 'vertical'
-        self.c = Client(language="en")
+        #self.c = Client(language="en")
 
         self.url_input = TextInput(hint_text='Enter URL', multiline=False)
         self.add_widget(self.url_input)
@@ -30,10 +30,10 @@ class MyBoxLayout(BoxLayout):
 
     def raw_download(self):
         url = self.url_input.text
-        video = self.c.get(url)
-        path = "/storage/emulated/0/"
-        quality = Quality.BEST
-        video.download(path=path, quality=quality, callback=self.update_progress)
+        #video = self.c.get(url)
+        #path = "/storage/emulated/0/"
+        #quality = Quality.BEST
+        #video.download(path=path, quality=quality, callback=self.update_progress)
 
 
     def update_progress(self, pos, total):

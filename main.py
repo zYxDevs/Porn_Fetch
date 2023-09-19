@@ -19,9 +19,9 @@ class MyBoxLayout(BoxLayout):
         #self.c = Client(language="en")
 
         if exception:
-            self.url_input = TextInput(hint_text=exception_text, multiline=False)
+            self.url_input = TextInput(hint_text=str(exception_text), multiline=False)
         else:
-            self.url_input = TextInput(hint_text=exception_text, multiline=False)
+            self.url_input = TextInput(hint_text="Enter URL:", multiline=False)
 
         self.add_widget(self.url_input)
 

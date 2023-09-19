@@ -5,18 +5,20 @@ from kivy.uix.button import Button
 from kivy.uix.progressbar import ProgressBar
 from threading import Thread
 try:
-    import phub
+    from phub import Client, Quality
 
 except Exception as e:
     exception = True
     exception_text = e
+
+exception = False
 
 class MyBoxLayout(BoxLayout):
 
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
         self.orientation = 'vertical'
-        #self.c = Client(language="en")
+        self.c = Client(language="en")
 
         if exception:
             self.url_input = TextInput(hint_text=str(exception_text), multiline=False)
@@ -39,11 +41,13 @@ class MyBoxLayout(BoxLayout):
 
     def raw_download(self):
         url = self.url_input.text
-        #video = self.c.get(url)
-        #path = "/storage/emulated/0/"
-        #quality = Quality.BEST
-        #video.download(path=path, quality=quality, callback=self.update_progress)
-
+        video = self.c.get(url)
+        path = "/storage/emulated/0/"
+        quality = Quality.BEST
+        try:
+            video.download(path=path, quality=quality, callback=self.update_progress)
+        except Exception as e:
+            self.url_input.hint_text = str(e)
 
     def update_progress(self, pos, total):
         percentage_complete = (pos / total) * 100

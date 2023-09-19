@@ -7,27 +7,29 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from threading import Thread
-from plyer import filechooser
+
 try:
-    from phub import Client, Quality
+    import phub
+
+    text = "Sucessfully imported PHUB"
+    exception = False
 
 except Exception as e:
     exception = True
-    exception_text = e
+    text = str(e)
 
-exception = False
 
 class MyBoxLayout(BoxLayout):
 
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
         self.orientation = 'vertical'
-        self.c = Client(language="en")
 
         if exception:
-            self.url_input = TextInput(hint_text=str(exception_text), multiline=False)
+            self.url_input = TextInput(hint_text=str(text), multiline=False)
+
         else:
-            self.url_input = TextInput(hint_text="Enter URL:", multiline=False)
+            self.url_input = TextInput(hint_text=str(text), multiline=False)
 
         self.add_widget(self.url_input)
 
@@ -44,9 +46,6 @@ class MyBoxLayout(BoxLayout):
                       size_hint=(None, None), size=(400, 400))
         popup.open()
 
-    def get_download_path(self):
-        return filechooser.get_downloads_dir()
-
     def download_video(self, instance):
 
         download_thread = Thread(target=self.raw_download)
@@ -54,12 +53,13 @@ class MyBoxLayout(BoxLayout):
 
     def raw_download(self):
         try:
+            c = phub.Client()
             url = self.url_input.text
-            video = self.c.get(url)
+            video = c.get(url)
             Clock.schedule_once(lambda dt: self.show_popup("Success", "URL erfolgreich geladen!"))
 
-            path = self.get_download_path()
-            quality = Quality.BEST
+            path = "/storage/emulated/0/Download/"
+            quality = phub.Quality.BEST
             video.download(path=path, quality=quality, callback=self.update_progress)
             Clock.schedule_once(lambda dt: self.show_popup("Success", "Video erfolgreich heruntergeladen!"))
         except Exception as exc:
@@ -69,10 +69,12 @@ class MyBoxLayout(BoxLayout):
         percentage_complete = (pos / total) * 100
         self.progress_bar.value = percentage_complete
 
+
 class MyApp(App):
 
     def build(self):
         return MyBoxLayout()
+
 
 if __name__ == '__main__':
     MyApp().run()

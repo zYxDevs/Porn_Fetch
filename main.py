@@ -4,7 +4,12 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.progressbar import ProgressBar
 from threading import Thread
+try:
+    import phub
 
+except Exception as e:
+    exception = True
+    exception_text = e
 
 class MyBoxLayout(BoxLayout):
 
@@ -13,7 +18,11 @@ class MyBoxLayout(BoxLayout):
         self.orientation = 'vertical'
         #self.c = Client(language="en")
 
-        self.url_input = TextInput(hint_text='Enter URL', multiline=False)
+        if exception:
+            self.url_input = TextInput(hint_text=exception_text, multiline=False)
+        else:
+            self.url_input = TextInput(hint_text=exception_text, multiline=False)
+
         self.add_widget(self.url_input)
 
         self.submit_button = Button(text='Download Video')

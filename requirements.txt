@@ -1,3 +1,1 @@
-phub
-kivy
-
+cython==0.29.36

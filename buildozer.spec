@@ -1,13 +1,13 @@
 [app]
 
 # (str) Title of your application
-title = Porn_Fetch_v1
+title = Porn_Fetch_V1
 
 # (str) Package name
-package.name = Porn_Fetch_v0_1
+package.name = porn_fetch
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.test
+package.domain = com.porn_fetch.test
 
 # (str) Source code where the main.py live
 source.dir = .
@@ -19,10 +19,10 @@ source.include_exts = py,png,jpg,kv,atlas
 #source.include_patterns = assets/*,images/*.png
 
 # (list) Source files to exclude (let empty to not exclude anything)
-#source.exclude_exts = spec
+source.exclude_exts = spec
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-#source.exclude_dirs = tests, bin, venv
+source.exclude_dirs = tests, bin, venv
 
 # (list) List of exclusions using pattern matching
 # Do not prefix with './'
@@ -37,7 +37,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy
+requirements = python3==3.10.10,kivy,git+https://github.com/EchterAlsFake/PHUB.git
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes

@@ -62,8 +62,8 @@ class MyBoxLayout(BoxLayout):
             quality = Quality.BEST
             video.download(path=path, quality=quality, callback=self.update_progress)
             Clock.schedule_once(lambda dt: self.show_popup("Success", "Video erfolgreich heruntergeladen!"))
-        except Exception as e:
-            Clock.schedule_once(lambda dt: self.show_popup("Error", str(e)))
+        except Exception as exc:
+            Clock.schedule_once(lambda dt, exc=exc: self.show_popup("Error", str(exc)))
 
     def update_progress(self, pos, total):
         percentage_complete = (pos / total) * 100

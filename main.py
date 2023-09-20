@@ -7,7 +7,9 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from threading import Thread
-from plyer import filechooser
+from kivymd.uix.filemanager import MDFileManager
+from kivymd.toast import toast
+
 try:
     import phub
     text = """
@@ -27,6 +29,10 @@ class MyBoxLayout(BoxLayout):
         self.orientation = 'vertical'
         self.chosen_path = None
         self.path_set = False
+        self.file_manager = MDFileManager(
+            exit_manager=self.exit_manager,
+            select_path=self.select_path
+        )
 
         if exception:
             self.url_input = TextInput(hint_text=str(text), multiline=True)
@@ -54,16 +60,21 @@ class MyBoxLayout(BoxLayout):
                       size_hint=(None, None), size=(400, 400))
         popup.open()
 
+    def select_path(self, path):
+        self.chosen_path = path
+        self.path_set = True
+        self.file_manager.close()
+
+    # Exit the file manager
+    def exit_manager(self, *args):
+        self.file_manager.close()
+
+    # Open file manager
     def open_filechooser(self, instance):
         try:
-            path = filechooser.choose_dir(title="Select Folder")
-            if path:
-                self.chosen_path = path[0]
-                self.path_set = True
+            self.file_manager.show('/')  # you can start from root or a specific directory e.g., '/sdcard/'
         except Exception as e:
-            error_msg = f"Error in open_filechooser: {type(e).__name__} - {str(e)}"
-            self.show_popup("Error", error_msg)
-
+            toast(f"Error: {str(e)}")  # Using KivyMD's toast for a quick error message
 
     def download_video(self, instance):
         if not self.path_set:

@@ -7,8 +7,11 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from threading import Thread
-from kivymd.uix.filemanager import MDFileManager
-from kivymd.toast import toast
+from plyer import storagepath
+
+# Get path to the primary external storage (often internal memory on modern devices)
+primary_storage = storagepath.get_storagepath(type='external')
+download_folder = f"{primary_storage}/Download"
 
 try:
     import phub
@@ -22,17 +25,12 @@ except Exception as e:
     exception = True
     text = f"There was an error importing phub. Please report the following: {e}"
 
+
 class MyBoxLayout(BoxLayout):
 
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
         self.orientation = 'vertical'
-        self.chosen_path = None
-        self.path_set = False
-        self.file_manager = MDFileManager(
-            exit_manager=self.exit_manager,
-            select_path=self.select_path
-        )
 
         if exception:
             self.url_input = TextInput(hint_text=str(text), multiline=True)
@@ -40,13 +38,12 @@ class MyBoxLayout(BoxLayout):
         else:
             self.url_input = TextInput(hint_text=str(text), multiline=True)
 
+
         self.add_widget(self.url_input)
 
         # Add button for specifying download location
-        self.path_button = Button(text='Specify Download Location')
-        self.path_button.bind(on_press=self.open_filechooser)
-        self.add_widget(self.path_button)
-
+        information = TextInput(hint_text=str(download_folder), multiline=False)
+        self.add_widget(information)
         self.submit_button = Button(text='Download Video')
         self.submit_button.bind(on_press=self.download_video)
         self.add_widget(self.submit_button)
@@ -59,22 +56,6 @@ class MyBoxLayout(BoxLayout):
                       content=Label(text=message),
                       size_hint=(None, None), size=(400, 400))
         popup.open()
-
-    def select_path(self, path):
-        self.chosen_path = path
-        self.path_set = True
-        self.file_manager.close()
-
-    # Exit the file manager
-    def exit_manager(self, *args):
-        self.file_manager.close()
-
-    # Open file manager
-    def open_filechooser(self, instance):
-        try:
-            self.file_manager.show('/')  # you can start from root or a specific directory e.g., '/sdcard/'
-        except Exception as e:
-            toast(f"Error: {str(e)}")  # Using KivyMD's toast for a quick error message
 
     def download_video(self, instance):
         if not self.path_set:
@@ -89,7 +70,7 @@ class MyBoxLayout(BoxLayout):
             c = phub.Client()
             url = self.url_input.text
             video = c.get(url)
-            path = self.chosen_path
+            path = download_folder
             quality = phub.Quality.BEST
             video.download(path=path, quality=quality, callback=self.update_progress)
 

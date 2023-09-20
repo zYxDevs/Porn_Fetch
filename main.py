@@ -16,16 +16,7 @@ from kivymd.uix.dialog import MDDialog
 from kivymd.theming import ThemeManager
 
 if platform == "android":
-    try:
-        from jnius import autoclass
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        Permission = autoclass('android.Manifest$permission')
-        ActivityCompat = autoclass('androidx.core.app.ActivityCompat')
-        ContextCompat = autoclass('androidx.core.content.ContextCompat')
-
-    except Exception as e:
-        exception = True
-        text = str(e)
+    from jnius import autoclass
 
 try:
     import phub
@@ -48,27 +39,7 @@ def strip_tittle(title):
     return title
 
 
-
-
 class MyBoxLayout(BoxLayout):
-
-    if platform == "android":
-        def build(self):
-            self.request_android_permissions()
-
-        def have_permission(self, perm):
-            activity = PythonActivity.mActivity
-            return ContextCompat.checkSelfPermission(activity, perm) == 0
-
-        def request_android_permissions(self):
-            activity = PythonActivity.mActivity
-
-            if not self.have_permission(Permission.WRITE_EXTERNAL_STORAGE):
-                ActivityCompat.requestPermissions(activity, [Permission.WRITE_EXTERNAL_STORAGE], 1234)
-
-            if not self.have_permission(Permission.READ_EXTERNAL_STORAGE):
-                ActivityCompat.requestPermissions(activity, [Permission.READ_EXTERNAL_STORAGE], 1235)
-
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
         self.orientation = 'vertical'
@@ -148,7 +119,10 @@ class MyBoxLayout(BoxLayout):
             video = self.c.get(url)
             path = self.download_folder
             quality = phub.Quality.BEST
-            video.download(path=path, quality=quality, callback=self.update_progress)
+            title = video.title
+            title = strip_tittle(title)
+
+            video.download(path=f"{path}{title}.mp4", quality=quality, callback=self.update_progress)
 
         except Exception as exc:
             error_details = f"{type(exc).__name__}: {str(exc)}"

@@ -6,6 +6,8 @@ from kivy.uix.button import Button
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
+from kivy.core.clipboard import Clipboard
+
 from threading import Thread
 from kivymd.app import MDApp
 from kivymd.uix.textfield import MDTextField
@@ -74,13 +76,24 @@ class MyBoxLayout(BoxLayout):
         self.spacing = "10dp"
         self.c = phub.Client(language="en")
 
+        # Wrap the URL input and paste button in a horizontal layout
+        url_box = BoxLayout(orientation='horizontal', spacing='10dp', size_hint_y=None, height='40dp')
+
         self.url_input = MDTextField(
             hint_text=str(text),
             mode="rectangle",
-            size_hint_y=None,
-            height="40dp"
+            size_hint_x=0.85  # Reduced size to make space for the paste button
         )
-        self.add_widget(self.url_input)
+        url_box.add_widget(self.url_input)
+
+        paste_button = MDRaisedButton(
+            text="Paste",
+            size_hint_x=0.15,  # Allocate the rest of the space for the paste button
+            on_release=self.paste_from_clipboard
+        )
+        url_box.add_widget(paste_button)
+
+        self.add_widget(url_box)
 
         if platform == "android":
             environment = autoclass('android.os.Environment')
@@ -108,6 +121,10 @@ class MyBoxLayout(BoxLayout):
 
         self.progress_bar = ProgressBar(max=100, size_hint_y=None, height="30dp")
         self.add_widget(self.progress_bar)
+
+    def paste_from_clipboard(self, instance):
+        clipboard_content = Clipboard.get()
+        self.url_input.text = clipboard_content
 
     def show_popup(self, title, message):
         dialog = MDDialog(

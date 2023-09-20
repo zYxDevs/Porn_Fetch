@@ -54,11 +54,16 @@ class MyBoxLayout(BoxLayout):
                       size_hint=(None, None), size=(400, 400))
         popup.open()
 
-    def open_filechooser(self, instance):   # Note: Added "instance" parameter to match button's on_press callback
-        path = filechooser.choose_dir(title="Select Folder")  # Opens directory chooser
-        if path:  # If a directory is chosen
-            self.chosen_path = path[0]  # filechooser returns a list; we get the first item
-            self.path_set = True
+    def open_filechooser(self, instance):
+        try:
+            path = filechooser.choose_dir(title="Select Folder")
+            if path:
+                self.chosen_path = path[0]
+                self.path_set = True
+        except Exception as e:
+            error_msg = f"Error in open_filechooser: {type(e).__name__} - {str(e)}"
+            self.show_popup("Error", error_msg)
+
 
     def download_video(self, instance):
         if not self.path_set:

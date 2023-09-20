@@ -9,12 +9,16 @@ from kivy.uix.label import Label
 from threading import Thread
 from jnius import autoclass
 
+try:
 
-PythonActivity = autoclass('org.kivy.android.PythonActivity')
-Permission = autoclass('android.Manifest$permission')
-ActivityCompat = autoclass('androidx.core.app.ActivityCompat')
-ContextCompat = autoclass('androidx.core.content.ContextCompat')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    Permission = autoclass('android.Manifest$permission')
+    ActivityCompat = autoclass('androidx.core.app.ActivityCompat')
+    ContextCompat = autoclass('androidx.core.content.ContextCompat')
 
+except Exception as e:
+    exception = True
+    text = str(e)
 
 try:
     import phub
@@ -63,6 +67,9 @@ class MyBoxLayout(BoxLayout):
         self.add_widget(self.url_input)
 
         # Add button for specifying download location
+        Environment = autoclass('android.os.Environment')
+        download_folder = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
         information = TextInput(hint_text=str(download_folder), multiline=False)
         self.add_widget(information)
         self.submit_button = Button(text='Download Video')
@@ -88,9 +95,7 @@ class MyBoxLayout(BoxLayout):
 
     def raw_download(self):
         try:
-            Environment = autoclass('android.os.Environment')
-            download_folder = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
+
             c = phub.Client()
             url = self.url_input.text
             video = c.get(url)

@@ -20,7 +20,6 @@ except Exception as e:
     exception = True
     text = f"There was an error importing phub. Please report the following: {e}"
 
-
 class MyBoxLayout(BoxLayout):
 
     def __init__(self, **kwargs):
@@ -37,6 +36,11 @@ class MyBoxLayout(BoxLayout):
 
         self.add_widget(self.url_input)
 
+        # Add button for specifying download location
+        self.path_button = Button(text='Specify Download Location')
+        self.path_button.bind(on_press=self.open_filechooser)
+        self.add_widget(self.path_button)
+
         self.submit_button = Button(text='Download Video')
         self.submit_button.bind(on_press=self.download_video)
         self.add_widget(self.submit_button)
@@ -50,13 +54,16 @@ class MyBoxLayout(BoxLayout):
                       size_hint=(None, None), size=(400, 400))
         popup.open()
 
-    def open_filechooser(self):
+    def open_filechooser(self, instance):   # Note: Added "instance" parameter to match button's on_press callback
         path = filechooser.choose_dir(title="Select Folder")  # Opens directory chooser
         if path:  # If a directory is chosen
             self.chosen_path = path[0]  # filechooser returns a list; we get the first item
             self.path_set = True
 
     def download_video(self, instance):
+        if not self.path_set:
+            self.show_popup("Error", "Please specify a download location first.")
+            return
 
         download_thread = Thread(target=self.raw_download)
         download_thread.start()
@@ -66,18 +73,13 @@ class MyBoxLayout(BoxLayout):
             c = phub.Client()
             url = self.url_input.text
             video = c.get(url)
-            if not self.path_set:
-                self.open_filechooser()
-                path = self.chosen_path
-
-            else:
-                path = self.chosen_path
-
+            path = self.chosen_path
             quality = phub.Quality.BEST
             video.download(path=path, quality=quality, callback=self.update_progress)
 
         except Exception as exc:
-            Clock.schedule_once(lambda dt, exc=exc: self.show_popup("Error", str(exc)))
+            error_details = f"{type(exc).__name__}: {str(exc)}"
+            Clock.schedule_once(lambda dt, err=error_details: self.show_popup("Error", err))
 
     def update_progress(self, pos, total):
         percentage_complete = (pos / total) * 100

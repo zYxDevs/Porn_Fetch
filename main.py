@@ -7,11 +7,14 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from threading import Thread
-from plyer import storagepath
+from jnius import autoclass
 
-# Get path to the primary external storage (often internal memory on modern devices)
-primary_storage = storagepath.get_storagepath(type='external')
-download_folder = f"{primary_storage}/Download"
+
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
+Permission = autoclass('android.Manifest$permission')
+ActivityCompat = autoclass('androidx.core.app.ActivityCompat')
+ContextCompat = autoclass('androidx.core.content.ContextCompat')
+
 
 try:
     import phub
@@ -27,6 +30,24 @@ except Exception as e:
 
 
 class MyBoxLayout(BoxLayout):
+
+    def build(self):
+        self.request_android_permissions()
+
+    def have_permission(self, perm):
+        activity = PythonActivity.mActivity
+        return ContextCompat.checkSelfPermission(activity, perm) == 0
+
+    def request_android_permissions(self):
+        activity = PythonActivity.mActivity
+
+        # Check and request WRITE_EXTERNAL_STORAGE permission
+        if not self.have_permission(Permission.WRITE_EXTERNAL_STORAGE):
+            ActivityCompat.requestPermissions(activity, [Permission.WRITE_EXTERNAL_STORAGE], 1234)
+
+        # Similarly, check and request READ_EXTERNAL_STORAGE permission
+        if not self.have_permission(Permission.READ_EXTERNAL_STORAGE):
+            ActivityCompat.requestPermissions(activity, [Permission.READ_EXTERNAL_STORAGE], 1235)
 
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
@@ -67,6 +88,9 @@ class MyBoxLayout(BoxLayout):
 
     def raw_download(self):
         try:
+            Environment = autoclass('android.os.Environment')
+            download_folder = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
             c = phub.Client()
             url = self.url_input.text
             video = c.get(url)
@@ -80,12 +104,13 @@ class MyBoxLayout(BoxLayout):
 
     def update_progress(self, pos, total):
         percentage_complete = (pos / total) * 100
-        self.progress_bar.value = percentage_complete
+        Clock.schedule_once(lambda dt: setattr(self.progress_bar, 'value', percentage_complete))
 
 
 class MyApp(App):
 
     def build(self):
+
         return MyBoxLayout()
 
 

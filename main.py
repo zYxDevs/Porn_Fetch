@@ -2,13 +2,16 @@ from kivy.app import App
 from kivy.utils import platform
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
-from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from threading import Thread
-
+from kivymd.app import MDApp
+from kivymd.uix.textfield import MDTextField
+from kivymd.uix.button import MDRaisedButton
+from kivymd.uix.dialog import MDDialog
+from kivymd.theming import ThemeManager
 
 if platform == "android":
     try:
@@ -24,15 +27,25 @@ if platform == "android":
 
 try:
     import phub
-    text = """
-Successfully imported PHUB. You can copy / paste the URL in this little input field here and click
-on the Download button, and if you are lucky enough, then you see the progressbar doing something ;) 
-"""
+    text = """Enter URL here:"""
     exception = False
 
 except Exception as e:
     exception = True
     text = f"There was an error importing phub. Please report the following: {e}"
+
+
+def strip_tittle(title):
+    control_chars = ''.join(chr(i) for i in range(32))
+    special_chars = '/\\?<>:*|&"$%!;\'#'
+    all_special_chars = list(control_chars + special_chars)
+
+    for special_char in all_special_chars:
+        title = str(title).strip(special_char)
+
+    return title
+
+
 
 
 class MyBoxLayout(BoxLayout):
@@ -48,49 +61,64 @@ class MyBoxLayout(BoxLayout):
         def request_android_permissions(self):
             activity = PythonActivity.mActivity
 
-            # Check and request WRITE_EXTERNAL_STORAGE permission
             if not self.have_permission(Permission.WRITE_EXTERNAL_STORAGE):
                 ActivityCompat.requestPermissions(activity, [Permission.WRITE_EXTERNAL_STORAGE], 1234)
 
-            # Similarly, check and request READ_EXTERNAL_STORAGE permission
             if not self.have_permission(Permission.READ_EXTERNAL_STORAGE):
                 ActivityCompat.requestPermissions(activity, [Permission.READ_EXTERNAL_STORAGE], 1235)
 
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
         self.orientation = 'vertical'
+        self.padding = "10dp"
+        self.spacing = "10dp"
+        self.c = phub.Client(language="en")
 
-        if exception:
-            self.url_input = TextInput(hint_text=str(text), multiline=True)
-
-        else:
-            self.url_input = TextInput(hint_text=str(text), multiline=True)
-
-
+        self.url_input = MDTextField(
+            hint_text=str(text),
+            mode="rectangle",
+            size_hint_y=None,
+            height="40dp"
+        )
         self.add_widget(self.url_input)
 
-        # Add button for specifying download location
         if platform == "android":
-            Environment = autoclass('android.os.Environment')
-            self.download_folder = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
+            environment = autoclass('android.os.Environment')
+            self.download_folder = environment.getExternalStoragePublicDirectory(
+                environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
+
         else:
             self.download_folder = "./"
 
-        information = TextInput(hint_text=str(self.download_folder), multiline=False)
+        information = MDTextField(
+            hint_text=str(f"Output folder: {self.download_folder}"),
+            mode="rectangle",
+            size_hint_y=None,
+            height="40dp",
+            readonly=True
+        )
         self.add_widget(information)
-        self.submit_button = Button(text='Download Video')
+
+        self.submit_button = MDRaisedButton(
+            text='Download Video',
+            pos_hint={'center_x': 0.5}
+        )
         self.submit_button.bind(on_press=self.download_video)
         self.add_widget(self.submit_button)
 
-        self.progress_bar = ProgressBar(max=100)  # Progress bar with maximum value of 100
+        self.progress_bar = ProgressBar(max=100, size_hint_y=None, height="30dp")
         self.add_widget(self.progress_bar)
 
     def show_popup(self, title, message):
-        popup = Popup(title=title,
-                      content=Label(text=message),
-                      size_hint=(None, None), size=(400, 400))
-        popup.open()
+        dialog = MDDialog(
+            title=title,
+            text=message,
+            buttons=[MDRaisedButton(text="Close", on_release=self.close_dialog)]
+        )
+        dialog.open()
+
+    def close_dialog(self, instance):
+        instance.parent.dismiss()
 
     def download_video(self, instance):
         download_thread = Thread(target=self.raw_download)
@@ -99,9 +127,8 @@ class MyBoxLayout(BoxLayout):
     def raw_download(self):
         try:
 
-            c = phub.Client()
             url = self.url_input.text
-            video = c.get(url)
+            video = self.c.get(url)
             path = self.download_folder
             quality = phub.Quality.BEST
             video.download(path=path, quality=quality, callback=self.update_progress)
@@ -115,10 +142,11 @@ class MyBoxLayout(BoxLayout):
         Clock.schedule_once(lambda dt: setattr(self.progress_bar, 'value', percentage_complete))
 
 
-class MyApp(App):
+class MyApp(MDApp):
+    theme_cls = ThemeManager()
 
     def build(self):
-
+        self.theme_cls.primary_palette = "Blue"  # Change this for a different color
         return MyBoxLayout()
 
 

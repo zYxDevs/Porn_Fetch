@@ -1,4 +1,5 @@
 from kivy.app import App
+from kivy.utils import platform
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
 from kivy.uix.textinput import TextInput
@@ -7,18 +8,19 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from threading import Thread
-from jnius import autoclass
 
-try:
 
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
-    Permission = autoclass('android.Manifest$permission')
-    ActivityCompat = autoclass('androidx.core.app.ActivityCompat')
-    ContextCompat = autoclass('androidx.core.content.ContextCompat')
+if platform == "android":
+    try:
+        from jnius import autoclass
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        Permission = autoclass('android.Manifest$permission')
+        ActivityCompat = autoclass('androidx.core.app.ActivityCompat')
+        ContextCompat = autoclass('androidx.core.content.ContextCompat')
 
-except Exception as e:
-    exception = True
-    text = str(e)
+    except Exception as e:
+        exception = True
+        text = str(e)
 
 try:
     import phub
@@ -35,23 +37,24 @@ except Exception as e:
 
 class MyBoxLayout(BoxLayout):
 
-    def build(self):
-        self.request_android_permissions()
+    if platform == "android":
+        def build(self):
+            self.request_android_permissions()
 
-    def have_permission(self, perm):
-        activity = PythonActivity.mActivity
-        return ContextCompat.checkSelfPermission(activity, perm) == 0
+        def have_permission(self, perm):
+            activity = PythonActivity.mActivity
+            return ContextCompat.checkSelfPermission(activity, perm) == 0
 
-    def request_android_permissions(self):
-        activity = PythonActivity.mActivity
+        def request_android_permissions(self):
+            activity = PythonActivity.mActivity
 
-        # Check and request WRITE_EXTERNAL_STORAGE permission
-        if not self.have_permission(Permission.WRITE_EXTERNAL_STORAGE):
-            ActivityCompat.requestPermissions(activity, [Permission.WRITE_EXTERNAL_STORAGE], 1234)
+            # Check and request WRITE_EXTERNAL_STORAGE permission
+            if not self.have_permission(Permission.WRITE_EXTERNAL_STORAGE):
+                ActivityCompat.requestPermissions(activity, [Permission.WRITE_EXTERNAL_STORAGE], 1234)
 
-        # Similarly, check and request READ_EXTERNAL_STORAGE permission
-        if not self.have_permission(Permission.READ_EXTERNAL_STORAGE):
-            ActivityCompat.requestPermissions(activity, [Permission.READ_EXTERNAL_STORAGE], 1235)
+            # Similarly, check and request READ_EXTERNAL_STORAGE permission
+            if not self.have_permission(Permission.READ_EXTERNAL_STORAGE):
+                ActivityCompat.requestPermissions(activity, [Permission.READ_EXTERNAL_STORAGE], 1235)
 
     def __init__(self, **kwargs):
         super(MyBoxLayout, self).__init__(**kwargs)
@@ -67,9 +70,13 @@ class MyBoxLayout(BoxLayout):
         self.add_widget(self.url_input)
 
         # Add button for specifying download location
-        Environment = autoclass('android.os.Environment')
-        self.download_folder = Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
+        if platform == "android":
+            Environment = autoclass('android.os.Environment')
+            self.download_folder = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
+        else:
+            self.download_folder = "./"
+
         information = TextInput(hint_text=str(self.download_folder), multiline=False)
         self.add_widget(information)
         self.submit_button = Button(text='Download Video')
@@ -86,10 +93,6 @@ class MyBoxLayout(BoxLayout):
         popup.open()
 
     def download_video(self, instance):
-        if not self.path_set:
-            self.show_popup("Error", "Please specify a download location first.")
-            return
-
         download_thread = Thread(target=self.raw_download)
         download_thread.start()
 

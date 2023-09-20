@@ -61,7 +61,7 @@ orientation = portrait
 #
 
 #
-# author = © Copyright Info
+author = EchterAlsFake
 
 # change the major version of python used by the app
 osx.python_version = 3.11
@@ -102,10 +102,10 @@ android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 #android.features = android.hardware.usb.host
 
 # (int) Target Android API, should be as high as possible.
-#android.api = 31
+android.api = 31
 
 # (int) Minimum API your APK / AAB will support.
-#android.minapi = 21
+android.minapi = 21
 
 # (int) Android SDK version to use
 #android.sdk = 20

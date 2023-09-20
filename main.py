@@ -68,9 +68,9 @@ class MyBoxLayout(BoxLayout):
 
         # Add button for specifying download location
         Environment = autoclass('android.os.Environment')
-        download_folder = Environment.getExternalStoragePublicDirectory(
+        self.download_folder = Environment.getExternalStoragePublicDirectory(
             Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
-        information = TextInput(hint_text=str(download_folder), multiline=False)
+        information = TextInput(hint_text=str(self.download_folder), multiline=False)
         self.add_widget(information)
         self.submit_button = Button(text='Download Video')
         self.submit_button.bind(on_press=self.download_video)
@@ -99,7 +99,7 @@ class MyBoxLayout(BoxLayout):
             c = phub.Client()
             url = self.url_input.text
             video = c.get(url)
-            path = download_folder
+            path = self.download_folder
             quality = phub.Quality.BEST
             video.download(path=path, quality=quality, callback=self.update_progress)
 

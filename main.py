@@ -10,7 +10,6 @@ from threading import Thread
 from plyer import filechooser
 try:
     import phub
-
     text = """
 Successfully imported PHUB. You can copy / paste the URL in this little input field here and click
 on the Download button, and if you are lucky enough, then you see the progressbar doing something ;) 
@@ -19,7 +18,7 @@ on the Download button, and if you are lucky enough, then you see the progressba
 
 except Exception as e:
     exception = True
-    text = str(e)
+    text = f"There was an error importing phub. Please report the following: {e}"
 
 
 class MyBoxLayout(BoxLayout):
@@ -51,7 +50,7 @@ class MyBoxLayout(BoxLayout):
                       size_hint=(None, None), size=(400, 400))
         popup.open()
 
-    def open_filechooser(self, instance):
+    def open_filechooser(self):
         path = filechooser.choose_dir(title="Select Folder")  # Opens directory chooser
         if path:  # If a directory is chosen
             self.chosen_path = path[0]  # filechooser returns a list; we get the first item
@@ -67,16 +66,16 @@ class MyBoxLayout(BoxLayout):
             c = phub.Client()
             url = self.url_input.text
             video = c.get(url)
-            Clock.schedule_once(lambda dt: self.show_popup("Success", "URL erfolgreich geladen!"))
             if not self.path_set:
                 self.open_filechooser()
+                path = self.chosen_path
 
             else:
                 path = self.chosen_path
 
             quality = phub.Quality.BEST
             video.download(path=path, quality=quality, callback=self.update_progress)
-            Clock.schedule_once(lambda dt: self.show_popup("Success", "Video erfolgreich heruntergeladen!"))
+
         except Exception as exc:
             Clock.schedule_once(lambda dt, exc=exc: self.show_popup("Error", str(exc)))
 

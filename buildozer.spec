@@ -1,7 +1,7 @@
 [app]
 
 # (str) Title of your application
-title = Porn_Fetch_V1
+title = Porn Fetch
 
 # (str) Package name
 package.name = porn_fetch

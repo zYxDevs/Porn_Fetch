@@ -1,3 +1,5 @@
+import os
+
 from kivy.app import App
 from kivy.utils import platform
 from kivy.uix.boxlayout import BoxLayout
@@ -122,7 +124,7 @@ class MyBoxLayout(BoxLayout):
             title = video.title
             title = strip_tittle(title)
 
-            video.download(path=f"{path}{title}.mp4", quality=quality, callback=self.update_progress)
+            video.download(path=f"{path}{os.sep}{title}.mp4", quality=quality, callback=self.update_progress)
 
         except Exception as exc:
             error_details = f"{type(exc).__name__}: {str(exc)}"

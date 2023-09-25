@@ -1,6 +1,4 @@
 cython==0.29.36
-phub
 Kivy
-pyjnius
 plyer
 kivymd

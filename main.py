@@ -1,3 +1,15 @@
 import os
 import sys
-import phub
+
+
+try:
+    import phub
+
+except Exception as e:
+    exception = e
+
+
+
+
+
+

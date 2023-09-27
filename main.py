@@ -46,14 +46,20 @@ class DownloadApp(MDApp):
 
     def download(self):
         # Get the URL from the TextField
-        url = self.url_input.text
-        self.choose_file()
-        # You can add the logic to download from the URL here
-        cl = Client(language="en")
-        video = cl.get(str(url))
-        quality = Quality.BEST
-        path = self.path[0]
-        video.download(path=f"/{path}", quality=quality, display=self.update_progress)
+        try:
+            url = self.url_input.text
+            self.choose_file()
+            # You can add the logic to download from the URL here
+            cl = Client(language="en")
+            video = cl.get(str(url))
+            quality = Quality.BEST
+            path = self.path[0]
+            video.download(path=f"/{path}", quality=quality, display=self.update_progress)
+            self.url_input.text = "Started Download"
+
+        except Exception as e:
+            self.url_input.text = str(e)
+
 
     def update_progress(self, pos, total):
         # Schedule the progress bar update to run in the main thread

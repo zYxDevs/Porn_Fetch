@@ -1,75 +1,43 @@
-import threading
+from kivy.lang import Builder
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
 from kivymd.app import MDApp
-from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDRaisedButton
-from kivymd.uix.label import MDLabel
-from kivymd.uix.textfield import MDTextField
-from kivymd.uix.progressbar import MDProgressBar
-from kivy.clock import Clock
 from plyer import filechooser
-from phub import Quality, Client
-from kivy.core.clipboard import Clipboard
-# Make sure to import other necessary modules and classes like Client, Quality, and filechooser
 
-class DownloadApp(MDApp):
+KV = """
+BoxLayout:
+    orientation: 'vertical'
+    padding: '10dp'
+    spacing: '10dp'
+
+    MDRaisedButton:
+        text: "Open File Dialog"
+        on_release: app.open_file_dialog()
+"""
+
+
+class FileDialogApp(MDApp):
     def build(self):
-        layout = MDBoxLayout(orientation='vertical', padding=10, spacing=10)
+        return Builder.load_string(KV)
 
-        # Creating a horizontal layout for the Label and the TextField
-        h_layout = MDBoxLayout(spacing=10)
-        h_layout.add_widget(MDLabel(text="Enter URL:"))
-        self.url_input = MDTextField()
-        h_layout.add_widget(self.url_input)
-
-        # Creating a Button
-        download_button = MDRaisedButton(text="Download", on_release=self.start_download_thread)
-        self.progress_bar = MDProgressBar(value=0, max=100)
-        clipboard_button = MDRaisedButton(text="Paste from Clipboard", on_release=self.paste_from_clipboard)
-
-        # Adding widgets to the main layout
-        layout.add_widget(h_layout)
-        layout.add_widget(download_button)
-        layout.add_widget(clipboard_button)
-        layout.add_widget(self.progress_bar)
-
-        return layout
-
-    def paste_from_clipboard(self, instance):
-        # Get the content from the clipboard and set it as the text of the TextField
-        clipboard_content = Clipboard.get()
-        self.url_input.text = clipboard_content
-
-    def start_download_thread(self, instance):
-        # Start the download in a new thread
-        download_thread = threading.Thread(target=self.download)
-        download_thread.start()
-
-    def download(self):
-        # Schedule the file chooser dialog to be opened in the main thread
-        Clock.schedule_once(lambda dt: self.choose_file())
-
-    def choose_file(self, *args):
-        # This will be executed in the main thread
+    def open_file_dialog(self):
+        # Open the file dialog in the main thread
         filechooser.choose_dir(on_selection=self.selected)
 
     def selected(self, selection):
-        # This will also be executed in the main thread
-        self.path = selection
-        # Continue with the download logic here
-        url = self.url_input.text
-        # You can add the logic to download from the URL here
-        cl = Client(language="en")
-        video = cl.get(str(url))
-        quality = Quality.BEST
-        path = self.path
-        video.download(path=f"/{path}", quality=quality, display=self.update_progress)
-        self.url_input.text = "Started Download"
-
-    def update_progress(self, pos, total):
-        # Schedule the progress bar update to run in the main thread
-        Clock.schedule_once(lambda dt: setattr(self.progress_bar, 'value', (pos / total) * 100))
+        if selection:
+            selected_path = selection[0]
+            popup = Popup(title='Selected Directory',
+                          content=Label(text=selected_path),
+                          size_hint=(None, None), size=(400, 400))
+            popup.open()
+        else:
+            popup = Popup(title='No Directory Selected',
+                          content=Label(text='No directory was selected!'),
+                          size_hint=(None, None), size=(400, 400))
+            popup.open()
 
 
-# Don't forget to run your app
 if __name__ == '__main__':
-    DownloadApp().run()
+    FileDialogApp().run()

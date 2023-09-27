@@ -3,7 +3,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivymd.app import MDApp
 from kivymd.uix.button import MDRaisedButton
-from plyer import filechooser
+from kivymd.uix.filemanager import MDFileManager
 import os
 
 KV = """
@@ -20,27 +20,32 @@ BoxLayout:
 
 class FileDialogApp(MDApp):
     def build(self):
+        self.file_manager = MDFileManager(
+            exit_manager=self.exit_manager,
+            select_path=self.select_path,
+        )
         return Builder.load_string(KV)
 
     def open_file_dialog(self):
-        # Open the file dialog in the main thread
-        filechooser.choose_file(on_selection=self.selected)
+        # Open the file manager in the main thread
+        self.file_manager.show('/')  # Show file manager from the root directory
 
-    def selected(self, selection):
-        if selection:
-            selected_path = selection[0]
-            # Extract the directory from the selected file path
-            directory = os.path.dirname(selected_path)
-            popup = Popup(title='Selected File and Directory',
-                          content=Label(text=f"File: {selected_path}\nDirectory: {directory}"),
-                          size_hint=(None, None), size=(400, 400))
-            popup.open()
-        else:
-            popup = Popup(title='No File Selected',
-                          content=Label(text='No file was selected!'),
-                          size_hint=(None, None), size=(400, 400))
-            popup.open()
+    def select_path(self, path):
+        # Callback for when a file/directory is selected
+        directory = os.path.dirname(path)
+        popup = Popup(title='Selected File and Directory',
+                      content=Label(text=f"File: {path}\nDirectory: {directory}"),
+                      size_hint=(None, None), size=(400, 400))
+        popup.open()
+        self.exit_manager()
+
+    def exit_manager(self, *args):
+        # Close the file manager
+        self.file_manager.close()
 
 
 if __name__ == '__main__':
     FileDialogApp().run()
+
+
+## I am jumping from the bridge if that shit doesn't work... (Joke)

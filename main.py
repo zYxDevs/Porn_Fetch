@@ -4,6 +4,7 @@ from kivy.uix.label import Label
 from kivymd.app import MDApp
 from kivymd.uix.button import MDRaisedButton
 from plyer import filechooser
+import os
 
 KV = """
 BoxLayout:
@@ -23,18 +24,20 @@ class FileDialogApp(MDApp):
 
     def open_file_dialog(self):
         # Open the file dialog in the main thread
-        filechooser.choose_dir(on_selection=self.selected)
+        filechooser.choose_file(on_selection=self.selected)
 
     def selected(self, selection):
         if selection:
             selected_path = selection[0]
-            popup = Popup(title='Selected Directory',
-                          content=Label(text=selected_path),
+            # Extract the directory from the selected file path
+            directory = os.path.dirname(selected_path)
+            popup = Popup(title='Selected File and Directory',
+                          content=Label(text=f"File: {selected_path}\nDirectory: {directory}"),
                           size_hint=(None, None), size=(400, 400))
             popup.open()
         else:
-            popup = Popup(title='No Directory Selected',
-                          content=Label(text='No directory was selected!'),
+            popup = Popup(title='No File Selected',
+                          content=Label(text='No file was selected!'),
                           size_hint=(None, None), size=(400, 400))
             popup.open()
 

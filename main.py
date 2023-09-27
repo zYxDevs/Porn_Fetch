@@ -50,7 +50,7 @@ class DownloadApp(MDApp):
         self.root.ids.url_input.text = Clipboard.paste()
 
     def file_manager_open(self):
-        home_dir = os.path.expanduser('~')
+        home_dir = "/"
         self.file_manager = MDFileManager(exit_manager=self.exit_manager,
                                           select_path=self.select_path)
         self.file_manager.show(home_dir)

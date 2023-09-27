@@ -45,31 +45,30 @@ class DownloadApp(MDApp):
         download_thread.start()
 
     def download(self):
-        # Get the URL from the TextField
-        try:
-            url = self.url_input.text
-            self.choose_file()
-            # You can add the logic to download from the URL here
-            cl = Client(language="en")
-            video = cl.get(str(url))
-            quality = Quality.BEST
-            path = self.path[0]
-            video.download(path=f"/{path}", quality=quality, display=self.update_progress)
-            self.url_input.text = "Started Download"
+        # Schedule the file chooser dialog to be opened in the main thread
+        Clock.schedule_once(lambda dt: self.choose_file())
 
-        except Exception as e:
-            self.url_input.text = str(e)
+    def choose_file(self, *args):
+        # This will be executed in the main thread
+        filechooser.choose_dir(on_selection=self.selected)
 
+    def selected(self, selection):
+        # This will also be executed in the main thread
+        self.path = selection
+        # Continue with the download logic here
+        url = self.url_input.text
+        # You can add the logic to download from the URL here
+        cl = Client(language="en")
+        video = cl.get(str(url))
+        quality = Quality.BEST
+        path = self.path
+        video.download(path=f"/{path}", quality=quality, display=self.update_progress)
+        self.url_input.text = "Started Download"
 
     def update_progress(self, pos, total):
         # Schedule the progress bar update to run in the main thread
         Clock.schedule_once(lambda dt: setattr(self.progress_bar, 'value', (pos / total) * 100))
 
-    def choose_file(self):
-        filechooser.choose_dir(on_selection=self.selected)
-
-    def selected(self, selection):
-        self.path = selection
 
 # Don't forget to run your app
 if __name__ == '__main__':

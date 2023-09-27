@@ -10,6 +10,7 @@ from kivy.core.clipboard import Clipboard
 import os
 from phub import Client, Quality
 
+
 KV = '''
 BoxLayout:
     orientation: 'vertical'
@@ -70,7 +71,7 @@ class DownloadApp(MDApp):
         # Assuming you have the Client class and related methods defined somewhere
         cl = Client()
         video = cl.get(self.root.ids.url_input.text)
-        video.download(quality=Quality.BEST, path=self.root.ids.output_input.text, display=self.update_progress)
+        video.download(quality=Quality.BEST, path=self.root.ids.output_input.text, callback=self.update_progress)
 
     def update_progress(self, pos, total):
         self.root.ids.progress_bar.value = (pos / total) * 100

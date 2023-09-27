@@ -69,7 +69,7 @@ class DownloadApp(MDApp):
 
     def download(self):
         # Assuming you have the Client class and related methods defined somewhere
-        cl = Client()
+        cl = Client(language="en", delay=False)
         video = cl.get(self.root.ids.url_input.text)
         video.download(quality=Quality.BEST, path=self.root.ids.output_input.text, callback=self.update_progress)
 

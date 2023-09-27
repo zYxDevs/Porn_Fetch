@@ -30,7 +30,7 @@ BoxLayout:
         MDTextField:
             id: output_input
         MDFlatButton:
-            text: "Set Path"
+            text: "Choose Directory"
             on_release: app.file_manager_open()
 
     MDFlatButton:
@@ -45,13 +45,15 @@ BoxLayout:
 
 class DownloadApp(MDApp):
     def build(self):
+        self.theme_cls.primary_palette = 'Purple'
         return Builder.load_string(KV)
+
 
     def paste_clipboard(self):
         self.root.ids.url_input.text = Clipboard.paste()
 
     def file_manager_open(self):
-        home_dir = "/"
+        home_dir = "/storage/emulated/0/"
         self.file_manager = MDFileManager(exit_manager=self.exit_manager,
                                           select_path=self.select_path)
         self.file_manager.show(home_dir)

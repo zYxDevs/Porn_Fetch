@@ -96,7 +96,6 @@ class DownloadApp(MDApp):
         self.theme_cls.primary_palette = 'Purple'  # Set the primary color
         self.theme_cls.accent_palette = 'Amber'  # Set the accent color
         self.theme_cls.theme_style = "Light"  # "Dark" for dark theme
-        self.theme_cls.bg_light = [1, 1, 1, 1]  # Background color for Light theme
         request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
         return Builder.load_string(KV)
 

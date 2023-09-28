@@ -1,3 +1,4 @@
+import kivy.utils
 from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivymd.uix.boxlayout import MDBoxLayout
@@ -9,6 +10,9 @@ from threading import Thread
 from kivy.core.clipboard import Clipboard
 import os
 from phub import Client, Quality
+
+if kivy.utils.platform == "android":
+    from android.permissions import request_permissions, Permission # Only available at runtime on Android
 
 
 KV = '''
@@ -46,6 +50,7 @@ BoxLayout:
 class DownloadApp(MDApp):
     def build(self):
         self.theme_cls.primary_palette = 'Purple'
+        request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
         return Builder.load_string(KV)
 
 

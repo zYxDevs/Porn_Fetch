@@ -127,3 +127,7 @@ class DownloadApp(MDApp):
 
 if __name__ == '__main__':
     DownloadApp().run()
+
+# Coded entirely by ChatGPT
+# Used for v0.2
+# Release v0.3 will be written by myself (Kivy is not so intuitive for me, so please be patient)

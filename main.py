@@ -5,6 +5,10 @@ from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDFlatButton
 from kivymd.uix.filemanager import MDFileManager
 from kivymd.uix.textfield import MDTextField
+from kivymd.uix.toolbar import MDTopAppBar # Ensure MDToolbar is imported
+from kivymd.uix.navigationdrawer import MDNavigationLayout, MDNavigationDrawer
+from kivymd.uix.list import OneLineListItem
+from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.progressbar import ProgressBar
 from threading import Thread
 from kivy.core.clipboard import Clipboard
@@ -15,81 +19,71 @@ if kivy.utils.platform == "android":
     from android.permissions import request_permissions, Permission # Only available at runtime on Android
 
 
+
 KV = '''
-<ContentNavigationDrawer>:
+BoxLayout:
+    orientation: 'vertical'
+    padding: dp(10)
+    spacing: dp(10)
 
-    ScrollView:
+    BoxLayout:
+        spacing: dp(10)
 
-        MDList:
+        MDLabel:
+            text: "Enter URL:"
+            theme_text_color: "Secondary"
+            
+        MDTextField:
+            id: url_input
+            md_bg_color: app.theme_cls.primary_light
+            elevation: 8
+            radius: [dp(10)]
+            
+        MDRaisedButton:
+            text: "Paste"
+            md_bg_color: app.theme_cls.primary_color
+            elevation: 8
+            theme_text_color: "Custom"
+            text_color: 1, 1, 1, 1
+            on_release: app.paste_clipboard()
+            radius: [dp(10)]
 
-            OneLineListItem:
-                text: "Screen 1"
-                on_press:
-                    root.nav_drawer.set_state("close")
-                    app.screen_manager.current = "scr 1"
+    BoxLayout:
+        spacing: dp(10)
 
-            OneLineListItem:
-                text: "Screen 2"
-                on_press:
-                    root.nav_drawer.set_state("close")
-                    app.screen_manager.current = "scr 2"
+        MDLabel:
+            text: "Output Location:"
+            theme_text_color: "Secondary"
+            
+        MDTextField:
+            id: output_input
+            md_bg_color: app.theme_cls.primary_light
+            elevation: 8
+            radius: [dp(10)]
+            
+        MDRaisedButton:
+            text: "Set Path"
+            md_bg_color: app.theme_cls.primary_color
+            elevation: 8
+            theme_text_color: "Custom"
+            text_color: 1, 1, 1, 1
+            on_release: app.file_manager_open()
+            radius: [dp(10)]
 
-Screen:
+    MDRaisedButton:
+        text: "Download"
+        md_bg_color: app.theme_cls.primary_color
+        elevation: 8
+        theme_text_color: "Custom"
+        text_color: 1, 1, 1, 1
+        on_release: app.start_download_thread()
+        radius: [dp(10)]
 
-    MDToolbar:
-        id: toolbar
-        pos_hint: {"top": 1}
-        elevation: 10
-        title: "Downloader App"
-        left_action_items: [["menu", lambda x: nav_drawer.set_state("open")]]
-
-    MDNavigationLayout:
-        x: toolbar.height
-
-        ScreenManager:
-            id: screen_manager
-
-            Screen:
-                name: "scr 1"
-
-                BoxLayout:
-                    orientation: 'vertical'
-
-                    MDTextField:
-                        id: url_input
-                        hint_text: "Enter URL"
-                        helper_text: "Paste the video URL you want to download"
-                        helper_text_mode: "on_focus"
-
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        adaptive_size: True
-                        padding: "10dp"
-
-                        MDFlatButton:
-                            text: "Paste"
-                            on_release: app.paste_clipboard()
-
-                        MDFlatButton:
-                            text: "Choose Directory"
-                            on_release: app.file_manager_open()
-
-                    MDFlatButton:
-                        text: "Download"
-                        on_release: app.start_download_thread()
-
-                    ProgressBar:
-                        id: progress_bar
-                        max: 100
-
-    MDNavigationDrawer:
-        id: nav_drawer
-
-        ContentNavigationDrawer:
-            screen_manager: screen_manager
-            nav_drawer: nav_drawer
+    ProgressBar:
+        id: progress_bar
+        max: 100
+        background_color: app.theme_cls.primary_light
 '''
-
 
 class DownloadApp(MDApp):
     def build(self):

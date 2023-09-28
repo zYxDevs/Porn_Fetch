@@ -16,43 +16,89 @@ if kivy.utils.platform == "android":
 
 
 KV = '''
-BoxLayout:
-    orientation: 'vertical'
+<ContentNavigationDrawer>:
 
-    BoxLayout:
-        MDLabel:
-            text: "Enter URL:"
-        MDTextField:
-            id: url_input
-        MDFlatButton:
-            text: "Paste"
-            on_release: app.paste_clipboard()
+    ScrollView:
 
-    BoxLayout:
-        MDLabel:
-            text: "Output Location:"
-        MDTextField:
-            id: output_input
-        MDFlatButton:
-            text: "Choose Directory"
-            on_release: app.file_manager_open()
+        MDList:
 
-    MDFlatButton:
-        text: "Download"
-        on_release: app.start_download_thread()
+            OneLineListItem:
+                text: "Screen 1"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    app.screen_manager.current = "scr 1"
 
-    ProgressBar:
-        id: progress_bar
-        max: 100
+            OneLineListItem:
+                text: "Screen 2"
+                on_press:
+                    root.nav_drawer.set_state("close")
+                    app.screen_manager.current = "scr 2"
+
+Screen:
+
+    MDToolbar:
+        id: toolbar
+        pos_hint: {"top": 1}
+        elevation: 10
+        title: "Downloader App"
+        left_action_items: [["menu", lambda x: nav_drawer.set_state("open")]]
+
+    MDNavigationLayout:
+        x: toolbar.height
+
+        ScreenManager:
+            id: screen_manager
+
+            Screen:
+                name: "scr 1"
+
+                BoxLayout:
+                    orientation: 'vertical'
+
+                    MDTextField:
+                        id: url_input
+                        hint_text: "Enter URL"
+                        helper_text: "Paste the video URL you want to download"
+                        helper_text_mode: "on_focus"
+
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        adaptive_size: True
+                        padding: "10dp"
+
+                        MDFlatButton:
+                            text: "Paste"
+                            on_release: app.paste_clipboard()
+
+                        MDFlatButton:
+                            text: "Choose Directory"
+                            on_release: app.file_manager_open()
+
+                    MDFlatButton:
+                        text: "Download"
+                        on_release: app.start_download_thread()
+
+                    ProgressBar:
+                        id: progress_bar
+                        max: 100
+
+    MDNavigationDrawer:
+        id: nav_drawer
+
+        ContentNavigationDrawer:
+            screen_manager: screen_manager
+            nav_drawer: nav_drawer
 '''
 
 
 class DownloadApp(MDApp):
     def build(self):
-        self.theme_cls.primary_palette = 'Purple'
+        self.theme_cls.primary_palette = 'Purple'  # Set the primary color
+        self.theme_cls.accent_palette = 'Amber'  # Set the accent color
+        self.theme_cls.theme_style = "Light"  # "Dark" for dark theme
+        self.theme_cls.bg_light = [1, 1, 1, 1]  # Background color for Light theme
         request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
         return Builder.load_string(KV)
-
 
     def paste_clipboard(self):
         self.root.ids.url_input.text = Clipboard.paste()

@@ -37,7 +37,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3==3.11.5,kivy,plyer,kivymd,git+https://github.com/Egsagon/PHUB.git
+requirements = python3==3.10.0,kivy,plyer,kivymd,git+https://github.com/Egsagon/PHUB.git@py-3.9
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes

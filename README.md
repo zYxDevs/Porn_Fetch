@@ -11,7 +11,7 @@
 
 ---
 
-**[<kbd><strong>&nbsp;<br>&nbsp;Download (v3.7)&nbsp;<br>&nbsp;</strong></kbd>](https://github.com/EchterAlsFake/Porn_Fetch/releases/tag/3.7)** 
+**[<kbd><strong>&nbsp;<br>&nbsp;Download (v3.8)&nbsp;<br>&nbsp;</strong></kbd>](https://github.com/EchterAlsFake/Porn_Fetch/releases/tag/3.8)** 
 **[<kbd><strong>&nbsp;<br>&nbsp;Screenshots&nbsp;<br>&nbsp;</strong></kbd>](https://github.com/EchterAlsFake/Porn_Fetch/blob/master/README/SCREENSHOTS.md)** 
 **[<kbd><strong>&nbsp;<br>&nbsp;Supported Websites&nbsp;<br>&nbsp;</strong></kbd>](https://github.com/EchterAlsFake/Porn_Fetch/blob/master/README/WEBSITES.md)** 
 **[<kbd><strong>&nbsp;<br>&nbsp;FAQ&nbsp;<br>&nbsp;</strong></kbd>](https://github.com/EchterAlsFake/Porn_Fetch/blob/master/README/FAQ.md)** 
@@ -40,8 +40,6 @@
   - [Linux](#for-ubuntu-windows-arch-linux-termux-fedora-opensuse)
   - [Termux](#for-termux)
   - [Windows](#for-windows-powershell-as-admin)
-- [Android](#-android)
-- [Translating](#-translating)
 - [Credits](#-credits)
 - [License](#-license)
 
@@ -52,6 +50,10 @@
 - Downloading whole model / channel accounts
 - Searching for videos (and downloading them directly)
 - Multithreaded downloading
+- Native Android Application
+- Automatic resuming
+- Fully automatic updating
+- Custom template for filenames based on video metadata
 - Dark mode and CLI support
 - No ads or mandatory logins
 - Multiple supported websites 
@@ -64,6 +66,8 @@
 - Installation AND portable mode selectable
 - Automatic file tagging (metadata)
 - Automatic conversion from MPEG-TS to mp4 (within seconds)
+- Fully automatic build scripts
+- Independent Open-Source [Server](https://github.com/EchterAlsFake/Server)
 - 100% Open-Source, made with ❤️ in 🇩🇪
 
 ## Installation
@@ -76,21 +80,22 @@
 > [!NOTE]
 > **Supported platforms & architectures (based on current release files)**
 
-| Platform                      | App              | Architectures                                   |
-|-------------------------------|------------------|-------------------------------------------------|
-| **Windows**                   | GUI              | x64, ARM                                        |
-| **Windows**                   | CLI              | x64, x86 (x32)                                  |
-| **Linux (X11 / Wayland)**     | GUI              | x64                                             |
-| **Linux (X11 / Wayland)**     | CLI              | x64, x86 (x32)*                                 |
-| **macOS**                     | GUI              | x86_64 (Intel)†                                 |
-| **Android**                   | CLI (via Termux) | All                                             |
-| **iOS** **(IN DEVELOPMENT!)** | CLI              | iOS 15.8+, rootless<br>Jailbroken with palera1n |
-
-
-† Intel build; runs on Apple Silicon (M1/M2/M3) via Rosetta 2.
+| Platform                   | App              | Architectures                                   |
+|----------------------------|------------------|-------------------------------------------------|
+| **Windows**                | GUI              | x64, ARM64                                      |
+| **Windows**                | CLI              | x64, x86 (x32)                                  |
+| **Linux (X11 / Wayland)**  | GUI              | x64, ARM64                                      |
+| **Linux (X11 / Wayland)**  | CLI              | x64, x86 (x32), riscv64, s390x, ppc64le         |
+| **macOS**                  | GUI              | x86_64, ARM64  (Universal build)                |
+| **Android**                | CLI (via Termux) | All                                             |
+| **Android**                | GUI              | x86_64, aarch64  (Android 8+ -> 16)             |
+| **iOS**                    | CLI              | iOS 15.8+, rootless<br>Jailbroken with palera1n |
 
 > [!NOTE]
 > Porn Fetch is mainly developed and tested on Arch Linux with Hyprland and Gnome. 
+
+> [!NOTE]
+> For more Information on iOS Support See: https://github.com/EchterAlsFake/Porn_Fetch/blob/master/README/iOS.md
 
 ## 🌐 Supported Websites
 - [PornHub.com](https://github.com/Egsagon/PHUB)
@@ -102,6 +107,9 @@
 - [xhamster.com](https://github.com/EchterAlsFake/xhamster_api)
 - [spankbang.com](https://spankbang.com)
 - [youporn.com](https://youporn.com)
+- [beeg.com](https://github.com/echteralsfake/beeg_api)
+- [porntrex.com](https://github.com/echteralsfake/porntrex_api)
+- [xfreehd.com](https://github.com/echteralsfake/xfreehd_api)
 
 > [!IMPORTANT] 
 > Not all websites support every feature. 
@@ -117,7 +125,6 @@ as well as the different concepts used here.
 See: https://github.com/EchterAlsFake/Porn_Fetch/blob/master/README/FOR_DEVELOPERS.md
 
 
-
 ## 🔨 Building from Source
 Building will be done through a fully automated script, that lets you select the version / commit to 
 build from and will install all dependencies automatically for you, including Python.
@@ -126,9 +133,12 @@ build from and will install all dependencies automatically for you, including Py
 > Building will be done using Python3.13.11 and [Nuitka](https://github.com/Nuitka/Nuitka) using Qt's `pyside6-deploy` tool.
 
 Hardware requirements:
-- ~3-5 GB of disk space (for macOS more like 10 GB) 
-- ~2–3 GB of RAM
-- A processor that can do some math
+- Electricity
+- CPU
+- RAM 
+- GPU (optional)
+- SSD (optional)
+- Red Star OS 4.0 or similar (although with x64 🥀)
 
 > Compilation takes around 20-60 minutes depending on your system and hardware.
 
@@ -184,9 +194,6 @@ Currently available in:
 
 > If a language is marked with a `*` it means, you can contribute something, and it needs an update!
 
-If you are familiar with Crowdin, you can just use that for translating, here's the project link:
-<br> -> https://crowdin.com/project/pornfetch
-
 
 ## 👏 Credits
 - API: [PHUB](https://github.com/EchterAlsFake/PHUB)
@@ -197,9 +204,7 @@ If you are familiar with Crowdin, you can just use that for translating, here's 
 
 ## 📚 License
 Licensed under [GPL 3](https://www.gnu.org/licenses/gpl-3.0.en.html).
-<br>Copyright (C) 2023–2025 Johannes Habel 
-
-Porn Fetch uses [FFmpeg](https://ffmpeg.org/), which is licensed under the GPL license
+<br>Copyright (C) 2023–2026 Johannes Habel 
 
 # Sponsoring / Donations
 Porn Fetch is developed entirely Open-Source and will always be free, because I like what

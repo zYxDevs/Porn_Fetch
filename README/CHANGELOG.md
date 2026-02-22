@@ -615,6 +615,8 @@ to be refactored.
 - Added Searching support for porntrex.com
 - Your configuration values are now saved after an update
 - Added automatic updating for macOS (natively, yes really 🔥)
+- Added fully automatic auto updating for future builds
+- You can now apply a custom template for the filename
 - You can now resume downloads
 - You can now actually stop downloads lol
 - You can now choose quality for each download separately
@@ -623,6 +625,7 @@ to be refactored.
 - Added loading screen
 
 ### Bug Fixes
+- Fixed Windows Arm64 builds
 - Fixed 403 missav error
 - Fixed PornHub download issue
 - Fixed PornHub thumbnail issue
@@ -653,11 +656,12 @@ to be refactored.
 - Updated build to Python 3.13.11 (All systems)
 - Updated Qt to 6.10.2
 - Updated Nuitka to 2.8.9
+- Porn Fetch server supports IPv4 now and has an actual SSL certificate
 
 ### Deprecations
 - Removed automated selection of videos
 - Removed Internet checks entirely
-
+- Removed default and ffmpeg download mode
 
 
 

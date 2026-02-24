@@ -10,9 +10,3 @@
 ---
 <img src="../src/frontend/screenshots/linux_4.png" alt="Image of the settings page"/>
 
----
-<img src="../src/frontend/screenshots/linux_5.png" alt="Image of the progressbars"/>
-
----
-# macOS (virtualized)
-<img src="../src/frontend/screenshots/apple_1.png" alt="Image of the progressbars"/>

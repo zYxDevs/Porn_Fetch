@@ -2,7 +2,11 @@
 This file is responsible for managing the login to the sites + automatic cookie retrieval
 """
 
-import http
+import asyncio
+import http.cookiejar
+from collections.abc import AsyncIterator, Mapping
+from urllib.parse import urlparse
+
 import browser_cookie3
 
 from src.backend import clients
@@ -13,6 +17,70 @@ from pornhub_api.modules.errors import LoginFailed, ClientAlreadyLogged
 
 
 logger = configure_app_logging(logger_name="PornFetch - [Login Manager]")
+
+_XVIDEOS_LOGIN_COOKIES = ("session_token", "session_token_auth")
+
+
+def provider_is_logged_in(provider: str) -> bool:
+    provider_key = provider.strip().casefold()
+    if provider_key == "pornhub":
+        return bool(clients.ph_client.logged)
+    if provider_key == "xhamster":
+        return clients.xh_client.account is not None
+    if provider_key == "xvideos":
+        return clients.xv_client.account is not None
+    return False
+
+
+def get_account_video_iterator(
+    provider: str,
+    collection: str,
+    playlist_url: str = "",
+) -> tuple[AsyncIterator, str]:
+    """Return a provider account iterator and its user-facing source name."""
+    provider_key = provider.strip().casefold()
+    collection_key = collection.strip().casefold()
+
+    if not provider_is_logged_in(provider_key):
+        raise LoginError(f"Please log in to {provider} before fetching account videos.")
+
+    if provider_key == "pornhub":
+        account = clients.ph_client.account
+        if collection_key == "history":
+            return account.get_history(), "PornHub watch history"
+        if collection_key == "recommended":
+            return account.get_recommended(), "PornHub recommendations"
+        if collection_key == "favorites":
+            return account.get_favorites(), "PornHub favorites"
+
+    elif provider_key == "xhamster":
+        account = clients.xh_client.account
+        if collection_key == "liked":
+            return account.get_liked_videos(), "XHamster liked videos"
+        if collection_key == "playlist":
+            parsed_url = urlparse(playlist_url.strip())
+            hostname = (parsed_url.hostname or "").casefold()
+            if (
+                parsed_url.scheme != "https"
+                or not (hostname == "xhamster.com" or hostname.endswith(".xhamster.com"))
+                or "/my/playlists/" not in parsed_url.path
+            ):
+                raise LoginError("Please enter a valid XHamster account playlist URL.")
+            return (
+                account.get_account_playlist(url=playlist_url.strip()),
+                "XHamster account playlist",
+            )
+
+    elif provider_key == "xvideos":
+        account = clients.xv_client.account
+        if collection_key == "watch_later":
+            return account.get_watch_later_videos(), "XVideos watch later"
+        if collection_key == "recommended":
+            return account.get_recommended_videos(), "XVideos recommendations"
+        if collection_key == "liked":
+            return account.get_liked_videos(), "XVideos liked videos"
+
+    raise LoginError(f"{collection!r} is not available for {provider} accounts.")
 
 
 def get_site_cookies(website: str) -> http.cookiejar.CookieJar:
@@ -63,22 +131,24 @@ def get_site_cookies(website: str) -> http.cookiejar.CookieJar:
 
 class LoginPornhub:
     @staticmethod
-    async def login(email: str, password: str, from_browser: bool = False):
+    async def login(email: str = "", password: str = "", from_browser: bool = False) -> bool:
         if from_browser:
             logger.info("Trying Login for PornHub... [Cookies - Browser]")
-            cookies = get_site_cookies(website="pornhub")
+            cookies = await asyncio.to_thread(get_site_cookies, "pornhub")
             if cookies:
                 logger.info("Injecting Cookies!")
                 clients.ph_client.core.session.cookies.update(cookies)
+                # The provider API only tracks credential logins itself. Keep
+                # its local state aligned with the authenticated cookie session.
+                clients.ph_client.logged = True
                 return True
 
             raise CookiesNotFound
 
         try:
             logger.info("Trying Login for PornHub.... [Authentication]")
-            clients.ph_client = clients.ph_Client(email=email, password=password, core=clients.ph_client.core)
-
-            if clients.ph_client.logged:
+            clients.ph_client.credentials.update({"email": email, "password": password})
+            if await clients.ph_client.login():
                 logger.info("Login Successful!")
                 return True
 
@@ -97,66 +167,81 @@ class LoginPornhub:
 
 class LoginXhamster:
     @staticmethod
-    async def login(username: str | None = None, password: str | None = None,  custom_cookies: dict | None = None,
-              from_browser: bool = False) -> bool:
+    async def login(
+        username: str | None = None,
+        password: str | None = None,
+        custom_cookies: Mapping[str, str] | None = None,
+        from_browser: bool = False,
+    ) -> bool:
         try:
             if custom_cookies:
                 logger.info("Trying Login for XHamster [Cookies]")
-                await clients.xh_client.login(cookies=custom_cookies)
+                account = await clients.xh_client.login(
+                    username="",
+                    password="",
+                    cookies=dict(custom_cookies),
+                )
+                clients.xh_client.account = account
+                return account is not None
 
-                if clients.xh_client.account:
-                    return True
-
-                else:
-                    logger.error("Login failed for an unknown reason!")
-                    return False
-
-
-            elif username and password:
+            if username and password:
                 logger.info("Trying Login for Xhamster [Authentication]")
-                await clients.xh_client.login(username=username, password=password)
+                account = await clients.xh_client.login(username=username, password=password)
+                clients.xh_client.account = account
+                return account is not None
 
-                if clients.xh_client.account:
-                    return True
-
-                else:
-                    logger.error("Login failed for an unknown reason!")
-                    return False
-
-            elif from_browser:
+            if from_browser:
                 logger.info("Trying Login for Xhamster [Cookies - Browser]")
-                cookies = get_site_cookies("xhamster")
+                cookies = await asyncio.to_thread(get_site_cookies, "xhamster")
                 if cookies:
                     logger.info("Injecting Cookies!")
-                    clients.xh_client.core.session.cookies.update(cookies)
-
-                    return True
+                    account = await clients.xh_client.login(
+                        username="",
+                        password="",
+                        cookies=cookies,
+                    )
+                    clients.xh_client.account = account
+                    return account is not None
 
                 raise CookiesNotFound
 
+            return False
+
         except xhLoginFailed as e:
             logger.info(f"Login failed due to an unknown reason! ->: {e}")
-            raise xhLoginFailed(str(e))
+            raise
 
 
 class LoginXVideos:
     @staticmethod
-    async def login(custom_cookies: dict | None = None, from_browser: bool = False) -> bool:
-        try:
-            if from_browser:
-                logger.info("Trying Login for XVideos [Cookies - Browser]")
-                cookies = get_site_cookies("xvideos")
-                if cookies:
-                    logger.info("Injecting Cookies!")
-                    clients.xv_client.core.session.cookies.update(cookies)
-                    return True
-
+    async def login(
+        custom_cookies: Mapping[str, str] | None = None,
+        from_browser: bool = False,
+    ) -> bool:
+        if from_browser:
+            logger.info("Trying Login for XVideos [Cookies - Browser]")
+            browser_cookies = await asyncio.to_thread(get_site_cookies, "xvideos")
+            if not browser_cookies:
                 raise CookiesNotFound
 
-            if custom_cookies:
-                logger.info("Trying Login for XVideos [Cookies]")
-                clients.xv_client.core.session.cookies.update(custom_cookies)
-                return True
+            custom_cookies = {
+                cookie.name: cookie.value
+                for cookie in browser_cookies
+                if cookie.name in _XVIDEOS_LOGIN_COOKIES
+            }
 
-        except Exception as e:
-            raise LoginError(str(e))
+        cookies = dict(custom_cookies or {})
+        missing = [name for name in _XVIDEOS_LOGIN_COOKIES if not cookies.get(name)]
+        if missing:
+            if from_browser:
+                raise CookiesNotFound(
+                    "XVideos login cookies were not found. Make sure you are logged in to "
+                    "XVideos in a supported browser."
+                )
+            raise LoginError(
+                "Both the XVideos session token and session token auth are required."
+            )
+
+        logger.info("Trying Login for XVideos [Cookies]")
+        clients.xv_client.account = clients.xv_client.get_account(cookies=cookies)
+        return clients.xv_client.account is not None

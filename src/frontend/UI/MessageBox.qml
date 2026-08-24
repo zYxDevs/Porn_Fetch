@@ -224,14 +224,11 @@ Window {
             }
 
             // Body Message Container (Freely scalable)
-            ScrollView {
+            SmoothScrollView {
                 id: bodyScrollView
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                ScrollBar.vertical: ScrollBar {
-                    policy: ScrollBar.AsNeeded
-                }
 
                 TextEdit {
                     id: bodyTextEdit

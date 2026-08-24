@@ -102,12 +102,22 @@ from src.backend.config import (__version__, IS_SOURCE_RUN, TEMP_DIRECTORY,
 from src.backend.shared_gui import (ui_popup, Signals,
                                     available_title_formatting_options)
 from src.backend.helper_functions import (safe_rmtree, make_debug_log)
+from src.backend.login_manager import (
+    LoginPornhub,
+    LoginXVideos,
+    LoginXhamster,
+    get_account_video_iterator,
+    provider_is_logged_in,
+)
+from pornhub_api.modules.errors import LoginFailed as phLoginFailed
+from pornhub_api.modules.errors import ClientAlreadyLogged
+from xhamster_api.modules.errors import LoginFailed as xhLoginFailed
 from src.backend.update_service import AutoUpdater, CheckUpdates, SparkleUpdater
 from src.backend.installation import InstallPornFetch
 from src.backend.uninstallation import UninstallPornFetch
 from src.backend.sni_proxy_manager import SNIProxyManager
 from src.backend.errors import (UnsupportedPlatform, AppNetworkError, AppNotFoundError,
-                                AppBotBlocked, safe_api_call)
+                                AppBotBlocked, CookiesNotFound, LoginError, safe_api_call)
 from src.backend.tests import run_smoke_tests
 from src.backend.download_manager import (
     DownloadManager,
@@ -415,6 +425,9 @@ class ProcessVideos(QObject):
 
 class Backend(QObject):
     showMessage = Signal(str)
+    loginStateChanged = Signal()
+    accountStateChanged = Signal()
+    accountFetchStateChanged = Signal()
     downloadsChanged = Signal()
     updateAvailable = Signal("QVariantMap")
     updateProgress = Signal(int, int)
@@ -428,6 +441,10 @@ class Backend(QObject):
     def __init__(self):
         super().__init__()
         self._background_tasks: set[asyncio.Task[object]] = set()
+        self._login_task: asyncio.Task[object] | None = None
+        self._login_in_progress = False
+        self._account_fetch_task: asyncio.Task[object] | None = None
+        self._account_fetch_in_progress = False
         self._proxy_test_task: asyncio.Task[object] | None = None
         self._update_check_task: asyncio.Task[object] | None = None
         self._auto_update_task: asyncio.Task[object] | None = None
@@ -465,6 +482,21 @@ class Backend(QObject):
 
     def has_premium_access(self) -> bool:
         return bool(self._license_bridge and self._license_bridge.isPremium)
+
+    @Property(bool, notify=loginStateChanged)
+    def loginInProgress(self) -> bool:
+        return self._login_in_progress
+
+    @Property(bool, notify=accountFetchStateChanged)
+    def accountFetchInProgress(self) -> bool:
+        return self._account_fetch_in_progress
+
+    @Property("QVariantMap", notify=accountStateChanged)
+    def accountLoginStatus(self) -> dict[str, bool]:
+        return {
+            provider: provider_is_logged_in(provider)
+            for provider in ("PornHub", "XHamster", "XVideos")
+        }
 
     def set_license_bridge(self, license_bridge: LicenseBridge) -> None:
         self._license_bridge = license_bridge
@@ -682,6 +714,7 @@ class Backend(QObject):
     @Slot(object)
     def load_clients(self, _locale: str | None = None) -> None:
         clients.refresh_clients()
+        self.accountStateChanged.emit()
 
     def _spawn(self, coro, *, name: str) -> asyncio.Task:
         task = asyncio.create_task(coro, name=name)
@@ -1153,6 +1186,144 @@ class Backend(QObject):
             origin_iterator_url=url,
             origin_iterator_name=self._iterator_display_name(source_obj, url, "playlist / collection"),
         )
+
+    @Slot(str, str, str)
+    def fetch_account_videos(
+        self,
+        provider: str,
+        collection: str,
+        playlist_url: str = "",
+    ) -> None:
+        if self._account_fetch_task is not None and not self._account_fetch_task.done():
+            return
+
+        self._account_fetch_in_progress = True
+        self.accountFetchStateChanged.emit()
+        self._account_fetch_task = self._spawn(
+            self._run_fetch_account_videos(provider, collection, playlist_url),
+            name=f"account-{provider.casefold()}-{collection.casefold()}",
+        )
+
+    async def _run_fetch_account_videos(
+        self,
+        provider: str,
+        collection: str,
+        playlist_url: str = "",
+    ) -> None:
+        try:
+            iterator, source_name = get_account_video_iterator(
+                provider=provider,
+                collection=collection,
+                playlist_url=playlist_url,
+            )
+            await self.process_videos(
+                iterator=iterator,
+                custom_options="",
+                filters=VideoFilters(),
+                origin_iterator_name=source_name,
+            )
+        except LoginError as error:
+            self.showMessage.emit(str(error))
+        except (phLoginFailed, xhLoginFailed):
+            self.showMessage.emit(
+                self.tr("Your %s login is no longer valid. Please log in again.") % provider
+            )
+        except Exception:
+            self.logger.exception(
+                "Could not fetch %s account collection %s",
+                provider,
+                collection,
+            )
+            self.showMessage.emit(
+                self.tr("Could not fetch the account videos. Please check the log for details.")
+            )
+        finally:
+            self._account_fetch_in_progress = False
+            self.accountFetchStateChanged.emit()
+
+    @Slot(str, str, str, bool)
+    def login_account(
+        self,
+        provider: str,
+        identity: str,
+        secret: str,
+        from_cookies: bool = False,
+    ) -> None:
+        if self._login_task is not None and not self._login_task.done():
+            return
+
+        self._login_in_progress = True
+        self.loginStateChanged.emit()
+        self._login_task = self._spawn(
+            self._run_login_account(
+                provider=provider,
+                identity=identity,
+                secret=secret,
+                from_cookies=from_cookies,
+            ),
+            name=f"login-{provider.casefold()}",
+        )
+
+    async def _run_login_account(
+        self,
+        provider: str,
+        identity: str,
+        secret: str,
+        from_cookies: bool = False,
+    ) -> None:
+        provider_key = provider.strip().casefold()
+
+        try:
+            if provider_key == "pornhub":
+                succeeded = await LoginPornhub.login(
+                    email=identity.strip(),
+                    password=secret,
+                    from_browser=from_cookies,
+                )
+            elif provider_key == "xhamster":
+                succeeded = await LoginXhamster.login(
+                    username=identity.strip(),
+                    password=secret,
+                    from_browser=from_cookies,
+                )
+            elif provider_key == "xvideos":
+                token_cookies = None
+                if not from_cookies:
+                    token_cookies = {
+                        "session_token": identity.strip(),
+                        "session_token_auth": secret.strip(),
+                    }
+                succeeded = await LoginXVideos.login(
+                    custom_cookies=token_cookies,
+                    from_browser=from_cookies,
+                )
+            else:
+                self.showMessage.emit(self.tr("The selected login provider is not supported."))
+                return
+
+            if succeeded:
+                self.accountStateChanged.emit()
+                self.showMessage.emit(self.tr("You have successfully logged in."))
+            else:
+                self.showMessage.emit(self.tr("The login failed. Please verify your account details."))
+        except CookiesNotFound as error:
+            self.showMessage.emit(str(error))
+        except (phLoginFailed, xhLoginFailed):
+            self.showMessage.emit(
+                self.tr("%s rejected the login. Please verify your account details.") % provider
+            )
+        except ClientAlreadyLogged:
+            self.showMessage.emit(self.tr("You are already logged in."))
+        except LoginError as error:
+            self.showMessage.emit(str(error))
+        except Exception:
+            self.logger.exception("Unexpected %s login failure", provider)
+            self.showMessage.emit(
+                self.tr("An unexpected login error occurred. Please check the log for details.")
+            )
+        finally:
+            self._login_in_progress = False
+            self.loginStateChanged.emit()
 
     @staticmethod
     def _iterator_display_name(iterator_object, url: str, source_kind: str) -> str:

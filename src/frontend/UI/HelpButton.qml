@@ -46,7 +46,7 @@ Button {
         // Keeping this as a binding also updates an already-open dialog.
         font: control.font
 
-        contentItem: ScrollView {
+        contentItem: SmoothScrollView {
             id: helpScroll
             clip: true
 

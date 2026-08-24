@@ -21,11 +21,23 @@ Rectangle {
     }
 
     Flickable {
+        id: infoFlickable
         anchors.fill: parent
         contentWidth: width
         contentHeight: contentColumn.height + 60
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+
+        SmoothWheelHandler {
+            id: infoWheelHandler
+            flickable: infoFlickable
+        }
+
+        ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+            active: size < 1.0 || hovered || pressed
+                    || infoWheelHandler.scrolling
+        }
 
         Column {
             id: contentColumn

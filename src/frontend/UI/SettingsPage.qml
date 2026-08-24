@@ -140,6 +140,17 @@ Pane {
                     // The 'model' is the data. Here it's just a simple list of strings.
                     model: ["Video", "Performance", "System", "Privacy", "UI"]
 
+                    SmoothWheelHandler {
+                        id: navigationWheelHandler
+                        flickable: navList
+                    }
+
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                        active: size < 1.0 || hovered || pressed
+                                || navigationWheelHandler.scrolling
+                    }
+
                     // 'delegate' defines how each individual item in the list looks
                     delegate: ItemDelegate {
                         font.pixelSize: 15
@@ -180,7 +191,7 @@ Pane {
                     // TAB 1: VIDEO SETTINGS
                     // ==========================================
                     // ScrollView ensures that if the window is too small, the user can scroll.
-                    ScrollView {
+                    SmoothScrollView {
                         id: "scrollviewVideo"
                         clip: true // Prevents content from drawing outside the scroll view
 
@@ -435,7 +446,7 @@ Pane {
                     // ==========================================
                     // TAB 2: LEISTUNG SETTINGS (Performance)
                     // ==========================================
-                    ScrollView {
+                    SmoothScrollView {
                         id: "scrollviewPerformance"
                         clip: true
 
@@ -675,7 +686,7 @@ Pane {
                     // ==========================================
                     // TAB 3: SYSTEM SETTINGS
                     // ==========================================
-                    ScrollView {
+                    SmoothScrollView {
                         clip: true
                         id: "scrollviewSettings"
 
@@ -801,7 +812,7 @@ Pane {
                     // TAB 4: Privacy Settings
                     // ===============
 
-                    ScrollView {
+                    SmoothScrollView {
                         clip: true
                         id: "scrollviewPrivacy"
 
@@ -955,7 +966,7 @@ Pane {
                     // ==========================================
                     // TAB 4: UI SETTINGS
                     // ==========================================
-                    ScrollView {
+                    SmoothScrollView {
                         id: "scrollviewUI"
                         clip: true
 

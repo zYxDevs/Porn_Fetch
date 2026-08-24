@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Safely patch PySide6 6.11 QtAsyncio for Python 3.14 and descriptor-based I/O.
+Safely patch PySide6 6.11 QtAsyncio for Python 3.14, descriptor-based I/O,
+and nested Qt event loops.
 
 The patch adds QSocketNotifier-backed implementations of:
 
     add_reader / remove_reader / add_writer / remove_writer
 
 and, when required, adds QAsyncioTask._make_cancelled_error() for Python 3.14.
+It also defers task steps that Qt dispatches re-entrantly while another asyncio
+task is active, which can otherwise happen when application code opens a nested
+QEventLoop for a modal dialog.
 
 Unlike a blind string-replacement script, this tool:
 
@@ -56,6 +60,8 @@ EVENTS_INIT_MARKER = f"{PATCH_ID}:fd-state"
 EVENTS_CLOSE_MARKER = f"{PATCH_ID}:fd-close"
 EVENTS_METHODS_MARKER = f"{PATCH_ID}:fd-methods"
 TASKS_METHOD_MARKER = f"{PATCH_ID}:cancelled-error"
+TASKS_REENTRANCY_GUARD_MARKER = f"{PATCH_ID}:task-reentrancy-guard"
+TASKS_REENTRANCY_DRAIN_MARKER = f"{PATCH_ID}:task-reentrancy-drain"
 
 
 class PatchError(RuntimeError):
@@ -281,6 +287,38 @@ CANCELLED_ERROR_METHOD = f'''\
 
 '''
 
+REENTRANT_STEP_GUARD = f'''\
+
+        # {TASKS_REENTRANCY_GUARD_MARKER}
+        # A modal/nested Qt event loop can dispatch another QAsyncioTask step
+        # before the currently entered task has yielded. CPython rejects that
+        # re-entrancy. Attach the step to the active task so it can release the
+        # work immediately after leaving its asyncio task context.
+        active_task = asyncio.current_task(loop=self._loop)
+        if active_task is not None:
+            deferred_steps = getattr(
+                active_task, "_qtasyncio_deferred_steps", None
+            )
+            if deferred_steps is None:
+                deferred_steps = []
+                active_task._qtasyncio_deferred_steps = deferred_steps
+            deferred_steps.append((self, exception_or_future))
+            return
+'''
+
+REENTRANT_STEP_DRAIN = f'''\
+
+        # {TASKS_REENTRANCY_DRAIN_MARKER}
+        deferred_steps = getattr(self, "_qtasyncio_deferred_steps", ())
+        self._qtasyncio_deferred_steps = []
+        for deferred_task, deferred_result in deferred_steps:
+            self._loop.call_soon(
+                deferred_task._step,
+                deferred_result,
+                context=deferred_task._context,
+            )
+'''
+
 
 # ---------------------------------------------------------------------------
 # Utilities
@@ -474,6 +512,39 @@ def find_close_insertion_line(close_method: ast.FunctionDef | ast.AsyncFunctionD
     return close_method.lineno
 
 
+def is_self_method_call(node: ast.AST, method_name: str) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == method_name
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "self"
+    )
+
+
+def find_task_done_guard_line(step_method: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+    for statement in step_method.body:
+        if isinstance(statement, ast.If) and is_self_method_call(statement.test, "done"):
+            return statement.end_lineno or statement.lineno
+    raise PatchError("Could not find QAsyncioTask._step() done guard")
+
+
+def find_task_step_try(step_method: ast.FunctionDef | ast.AsyncFunctionDef) -> ast.Try:
+    for statement in step_method.body:
+        if not isinstance(statement, ast.Try):
+            continue
+        for node in ast.walk(statement):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "asyncio"
+                and node.func.attr == "_enter_task"
+            ):
+                return statement
+    raise PatchError("Could not find the task-entry try block in QAsyncioTask._step()")
+
+
 def patch_events_source(source: str, *, force: bool) -> tuple[str, tuple[str, ...]]:
     try:
         tree = ast.parse(source)
@@ -593,63 +664,96 @@ def patch_tasks_source(
         target_python: tuple[int, int, int],
         force: bool,
 ) -> tuple[str, tuple[str, ...]]:
-    if target_python < (3, 14, 0):
-        return source, ()
-
     try:
         tree = ast.parse(source)
     except SyntaxError as error:
         raise PatchError(f"tasks.py does not parse: {error}") from error
 
     task_class = find_class(tree, "QAsyncioTask")
-    existing = class_method(task_class, "_make_cancelled_error")
+    edits: list[LineEdit] = []
+    descriptions: list[str] = []
 
-    if existing is not None:
-        # Native Qt implementations win. An already-marked method is
-        # idempotent. The small implementation produced by the original v1
-        # patch is recognized and upgraded automatically.
-        if TASKS_METHOD_MARKER in source:
-            return source, ()
-        existing_lines = source.splitlines(keepends=True)[
-            existing.lineno - 1:(existing.end_lineno or existing.lineno)
-        ]
-        existing_source = "".join(existing_lines)
-        legacy_patch = (
-            "_cancel_message" in existing_source
-            and "_cancelled_exc" not in existing_source
-            and "CancelledError" in existing_source
-        )
-        if not legacy_patch and not force:
-            return source, ()
+    if target_python >= (3, 14, 0):
+        existing = class_method(task_class, "_make_cancelled_error")
 
-        edit = LineEdit(
-            start=existing.lineno - 1,
-            end=existing.end_lineno or existing.lineno,
-            replacement=CANCELLED_ERROR_METHOD.rstrip("\n"),
-            description="replace _make_cancelled_error",
-        )
-    else:
-        get_coro = class_method(task_class, "get_coro")
-        if get_coro is not None:
-            insertion_line = get_coro.lineno - 1
-        elif task_class.body:
-            insertion_line = task_class.body[-1].end_lineno or task_class.body[-1].lineno
+        if existing is not None:
+            # Native Qt implementations win. An already-marked method is
+            # idempotent. The small implementation produced by the original v1
+            # patch is recognized and upgraded automatically.
+            if TASKS_METHOD_MARKER not in source:
+                existing_lines = source.splitlines(keepends=True)[
+                    existing.lineno - 1:(existing.end_lineno or existing.lineno)
+                ]
+                existing_source = "".join(existing_lines)
+                legacy_patch = (
+                    "_cancel_message" in existing_source
+                    and "_cancelled_exc" not in existing_source
+                    and "CancelledError" in existing_source
+                )
+                if legacy_patch or force:
+                    edits.append(LineEdit(
+                        start=existing.lineno - 1,
+                        end=existing.end_lineno or existing.lineno,
+                        replacement=CANCELLED_ERROR_METHOD.rstrip("\n"),
+                        description="replace _make_cancelled_error",
+                    ))
+                    descriptions.append(
+                        "added Python 3.14 cancellation compatibility"
+                    )
         else:
-            raise PatchError("QAsyncioTask has no body")
+            get_coro = class_method(task_class, "get_coro")
+            if get_coro is not None:
+                insertion_line = get_coro.lineno - 1
+            elif task_class.body:
+                insertion_line = (
+                    task_class.body[-1].end_lineno or task_class.body[-1].lineno
+                )
+            else:
+                raise PatchError("QAsyncioTask has no body")
 
-        edit = LineEdit(
-            start=insertion_line,
-            end=insertion_line,
-            replacement=CANCELLED_ERROR_METHOD,
-            description="add _make_cancelled_error",
-        )
+            edits.append(LineEdit(
+                start=insertion_line,
+                end=insertion_line,
+                replacement=CANCELLED_ERROR_METHOD,
+                description="add _make_cancelled_error",
+            ))
+            descriptions.append("added Python 3.14 cancellation compatibility")
 
-    modified = apply_line_edits(source, [edit])
+    reentrancy_markers = (
+        TASKS_REENTRANCY_GUARD_MARKER in source,
+        TASKS_REENTRANCY_DRAIN_MARKER in source,
+    )
+    if any(reentrancy_markers) and not all(reentrancy_markers):
+        raise PatchError("tasks.py contains an incomplete task re-entrancy patch")
+
+    if not any(reentrancy_markers):
+        step_method = class_method(task_class, "_step")
+        if step_method is None:
+            raise PatchError("Could not find QAsyncioTask._step()")
+        done_guard_line = find_task_done_guard_line(step_method)
+        task_step_try = find_task_step_try(step_method)
+        edits.extend((
+            LineEdit(
+                start=done_guard_line,
+                end=done_guard_line,
+                replacement=REENTRANT_STEP_GUARD,
+                description="guard against re-entrant task steps",
+            ),
+            LineEdit(
+                start=task_step_try.end_lineno or task_step_try.lineno,
+                end=task_step_try.end_lineno or task_step_try.lineno,
+                replacement=REENTRANT_STEP_DRAIN,
+                description="release deferred task steps after yielding",
+            ),
+        ))
+        descriptions.append("deferred task steps dispatched by nested Qt event loops")
+
+    modified = apply_line_edits(source, edits) if edits else source
     try:
         compile(modified, "tasks.py", "exec")
     except SyntaxError as error:
         raise PatchError(f"Generated tasks.py does not compile: {error}") from error
-    return modified, ("added Python 3.14 cancellation compatibility",)
+    return modified, tuple(descriptions)
 
 
 def build_changes(environment: EnvironmentInfo, *, force: bool) -> list[SourceChange]:
@@ -832,6 +936,13 @@ def verify_sources(environment: EnvironmentInfo) -> list[str]:
         task_class = find_class(tree, "QAsyncioTask")
         if class_method(task_class, "_make_cancelled_error") is None:
             problems.append("tasks.py lacks QAsyncioTask._make_cancelled_error()")
+
+    for marker in (
+        TASKS_REENTRANCY_GUARD_MARKER,
+        TASKS_REENTRANCY_DRAIN_MARKER,
+    ):
+        if marker not in tasks:
+            problems.append(f"tasks.py is missing marker {marker}")
 
     return problems
 

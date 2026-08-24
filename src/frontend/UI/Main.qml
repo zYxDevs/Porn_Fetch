@@ -112,7 +112,7 @@ ApplicationWindow {
                 horizontalAlignment: Text.AlignHCenter
             }
 
-            ScrollView {
+            SmoothScrollView {
                 id: updateScroll
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -328,6 +328,7 @@ ApplicationWindow {
             }
 
             AccountPage {
+                backendController: backend
             }
 
             StatisticsPage {

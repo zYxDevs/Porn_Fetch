@@ -30,7 +30,7 @@ Rectangle {
         ListElement { category: "Channels"; sites: "PornHub, Xhamster, Spankbang"; icon: "📺" }
         ListElement { category: "Playlists"; sites: "PornHub, xvideos, youporn"; icon: "📑" }
         ListElement { category: "Shorts"; sites: "Xhamster"; icon: "📱" }
-        ListElement { category: "Account Login"; sites: "PornHub, XVideos"; icon: "🔑" }
+        ListElement { category: "Account Login"; sites: "PornHub, XHamster, XVideos"; icon: "🔑" }
     }
 
     ColumnLayout {
@@ -79,6 +79,7 @@ Rectangle {
 
         // Grid View of Categories
         GridView {
+            id: sitesGrid
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -86,6 +87,17 @@ Rectangle {
             cellHeight: 120
             model: sitesModel
             boundsBehavior: Flickable.StopAtBounds
+
+            SmoothWheelHandler {
+                id: sitesWheelHandler
+                flickable: sitesGrid
+            }
+
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+                active: size < 1.0 || hovered || pressed
+                        || sitesWheelHandler.scrolling
+            }
 
             delegate: Item {
                 width: GridView.view.cellWidth

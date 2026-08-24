@@ -65,11 +65,22 @@ ComboBox {
         padding: 1
 
         contentItem: ListView {
+            id: qualityList
             clip: true
             implicitHeight: contentHeight
             model: control.popup.visible ? control.delegateModel : null
             currentIndex: control.highlightedIndex
-            ScrollIndicator.vertical: ScrollIndicator { }
+
+            SmoothWheelHandler {
+                id: qualityWheelHandler
+                flickable: qualityList
+            }
+
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+                active: size < 1.0 || hovered || pressed
+                        || qualityWheelHandler.scrolling
+            }
         }
     }
 

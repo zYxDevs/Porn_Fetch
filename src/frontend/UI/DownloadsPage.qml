@@ -10,6 +10,8 @@ Pane {
     padding: 0
     readonly property bool materialStyle: (typeof appSettings !== "undefined" && appSettings)
                                           && appSettings.core_style === "Material"
+    readonly property real actionColumnWidth: 168
+    readonly property real downloadButtonMaximumWidth: 116
 
     function qualityRequiresLicense(quality) {
         var normalized = String(quality || "").trim().toLowerCase()
@@ -253,7 +255,9 @@ Pane {
                             spacing: 8
 
                             Label {
-                                Layout.preferredWidth: 180
+                                Layout.minimumWidth: root.actionColumnWidth
+                                Layout.preferredWidth: root.actionColumnWidth
+                                Layout.maximumWidth: root.actionColumnWidth
                                 text: qsTr("Select / Download")
                             }
 
@@ -304,6 +308,11 @@ Pane {
 
                         model: backend.downloads
 
+                        SmoothWheelHandler {
+                            id: downloadWheelHandler
+                            flickable: downloadList
+                        }
+
                         delegate: Rectangle {
                             id: downloadRow
 
@@ -336,7 +345,9 @@ Pane {
                                 spacing: 8
 
                                 RowLayout {
-                                    Layout.preferredWidth: 180
+                                    Layout.minimumWidth: root.actionColumnWidth
+                                    Layout.preferredWidth: root.actionColumnWidth
+                                    Layout.maximumWidth: root.actionColumnWidth
                                     spacing: 4
 
                                     CheckBox {
@@ -348,6 +359,7 @@ Pane {
 
                                     Button {
                                         Layout.fillWidth: true
+                                        Layout.maximumWidth: root.downloadButtonMaximumWidth
                                         text: qsTr("Download")
                                         enabled: !downloadRow.downloadActive
                                         onClicked: backend.download_video(
@@ -357,20 +369,45 @@ Pane {
                                 }
 
                                 Label {
+                                    id: titleLabel
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 60
                                     Layout.minimumWidth: 100
                                     text: (appSettings.anonymous_mode === true || appSettings.anonymous_mode === "true" || appSettings.anonymous_mode === 1) ? "[redacted]" : downloadRow.title
-                                    wrapMode: Text.Wrap
+                                    clip: true
+                                    maximumLineCount: 1
+                                    wrapMode: Text.NoWrap
+                                    elide: Text.ElideRight
+
+                                    ToolTip.visible: titleHover.hovered
+                                                         && titleLabel.truncated
+                                    ToolTip.delay: 500
+                                    ToolTip.text: titleLabel.text
+
+                                    HoverHandler {
+                                        id: titleHover
+                                    }
                                 }
 
                                 Label {
+                                    id: authorLabel
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 40
                                     Layout.minimumWidth: 80
                                     text: (appSettings.anonymous_mode === true || appSettings.anonymous_mode === "true" || appSettings.anonymous_mode === 1) ? "[redacted]" : downloadRow.author
-                                    wrapMode: Text.Wrap
+                                    clip: true
+                                    maximumLineCount: 1
+                                    wrapMode: Text.NoWrap
                                     elide: Text.ElideRight
+
+                                    ToolTip.visible: authorHover.hovered
+                                                         && authorLabel.truncated
+                                    ToolTip.delay: 500
+                                    ToolTip.text: authorLabel.text
+
+                                    HoverHandler {
+                                        id: authorHover
+                                    }
                                 }
 
                                 Label {
@@ -498,6 +535,9 @@ Pane {
                         }
 
                         ScrollBar.vertical: ScrollBar {
+                            policy: ScrollBar.AsNeeded
+                            active: size < 1.0 || hovered || pressed
+                                    || downloadWheelHandler.scrolling
                         }
 
                         Label {
@@ -519,15 +559,11 @@ Pane {
             // Advanced configuration
             // --------------------------------------
 
-            ScrollView {
+            SmoothScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
                 contentWidth: availableWidth
-
-                ScrollBar.vertical: ScrollBar {
-                    policy: ScrollBar.AsNeeded
-                }
 
                 ColumnLayout {
                     width: parent.width

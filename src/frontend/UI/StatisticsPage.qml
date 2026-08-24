@@ -74,7 +74,7 @@ Pane {
         color: "transparent"
     }
 
-    ScrollView {
+    SmoothScrollView {
         id: dashboardScroll
         anchors.fill: parent
         clip: true

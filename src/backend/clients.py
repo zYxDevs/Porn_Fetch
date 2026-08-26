@@ -438,14 +438,18 @@ async def get_video(url: str | AnyVideoClass) -> AnyVideoClass:
 
 
 async def load_video_attributes(video: AnyVideoClass) -> VideoObject:
+    # Account iterators can legally return lazy media objects. These two
+    # providers expose every field consumed below through their HTML loader.
+    # Loading here as well as in the iterator configuration keeps this shared
+    # function safe for callers which supply an unconfigured iterator.
+    if isinstance(video, (ph_Video, xh_Video)):
+        await video.load_sources("html")
+
     title = video.title
 
     if isinstance(video, ph_Video):
-        stuff = await video.author
-        try:
-            author = stuff.name
-        except AttributeError:
-            author = "N/A"
+        author_information = video.author_information or {}
+        author = author_information.get("name") or "N/A"
 
         length = video.duration
         tags = video.tags
@@ -499,7 +503,9 @@ async def load_video_attributes(video: AnyVideoClass) -> VideoObject:
         video_id = video.title
 
     elif isinstance(video, xh_Video):
-        author = ",".join(video.pornstars)
+        author = ",".join(video.pornstars or ())
+        if not author:
+            author = video.uploader_name or "N/A"
         length = video.duration
         tags = video.tags
         thumbnail = video.thumbnail
@@ -555,13 +561,7 @@ async def load_video_attributes(video: AnyVideoClass) -> VideoObject:
 
     length = parse_length(length)
     qualities = await get_available_qualities(video)  # [144, 240, 360, ...]
-    print(f"Received Qualities: {qualities}")
-    print(f"Putting: {qualities[0]} in function")
-    print(f"Got: {normalize_quality_value(qualities[0])}")
-
-
     qualities = [normalize_quality(quality) for quality in qualities]
-    print(qualities)
 
     # Normalize publish date into UTC datetime (optional extra field)
     publish_dt_utc = parse_publish_date(publish_date)

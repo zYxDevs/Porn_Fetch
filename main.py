@@ -332,6 +332,7 @@ class ProcessVideos(QObject):
         async with aclosing(self.iterator) as iterator:
             idx = 0
             async for video in iterator:
+                print(f"Processing: {video} {idx}")
                 if self.result_limit is not None and idx >= self.result_limit:
                     break
 

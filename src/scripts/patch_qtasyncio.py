@@ -61,6 +61,7 @@ EVENTS_CLOSE_MARKER = f"{PATCH_ID}:fd-close"
 EVENTS_METHODS_MARKER = f"{PATCH_ID}:fd-methods"
 TASKS_METHOD_MARKER = f"{PATCH_ID}:cancelled-error"
 TASKS_REENTRANCY_GUARD_MARKER = f"{PATCH_ID}:task-reentrancy-guard"
+TASKS_SELF_REENTRANCY_MARKER = f"{PATCH_ID}:task-self-reentrancy-drop"
 TASKS_REENTRANCY_DRAIN_MARKER = f"{PATCH_ID}:task-reentrancy-drain"
 
 
@@ -295,6 +296,16 @@ REENTRANT_STEP_GUARD = f'''\
         # re-entrancy. Attach the step to the active task so it can release the
         # work immediately after leaving its asyncio task context.
         active_task = asyncio.current_task(loop=self._loop)
+
+        # {TASKS_SELF_REENTRANCY_MARKER}
+        # A task can receive its own completion callback synchronously before
+        # its coroutine has yielded the completed future. Queuing that callback
+        # would advance the coroutine a second time during its next await. The
+        # normal handling below will register a fresh callback for the yielded
+        # future, so this early self-step must simply be discarded.
+        if active_task is self:
+            return
+
         if active_task is not None:
             deferred_steps = getattr(
                 active_task, "_qtasyncio_deferred_steps", None
@@ -545,6 +556,20 @@ def find_task_step_try(step_method: ast.FunctionDef | ast.AsyncFunctionDef) -> a
     raise PatchError("Could not find the task-entry try block in QAsyncioTask._step()")
 
 
+def find_active_task_assignment(
+        step_method: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> ast.Assign:
+    for statement in step_method.body:
+        if not isinstance(statement, ast.Assign):
+            continue
+        if any(
+                isinstance(target, ast.Name) and target.id == "active_task"
+                for target in statement.targets
+        ):
+            return statement
+    raise PatchError("Could not find active_task assignment in QAsyncioTask._step()")
+
+
 def patch_events_source(source: str, *, force: bool) -> tuple[str, tuple[str, ...]]:
     try:
         tree = ast.parse(source)
@@ -726,10 +751,11 @@ def patch_tasks_source(
     if any(reentrancy_markers) and not all(reentrancy_markers):
         raise PatchError("tasks.py contains an incomplete task re-entrancy patch")
 
+    step_method = class_method(task_class, "_step")
+    if step_method is None:
+        raise PatchError("Could not find QAsyncioTask._step()")
+
     if not any(reentrancy_markers):
-        step_method = class_method(task_class, "_step")
-        if step_method is None:
-            raise PatchError("Could not find QAsyncioTask._step()")
         done_guard_line = find_task_done_guard_line(step_method)
         task_step_try = find_task_step_try(step_method)
         edits.extend((
@@ -747,6 +773,26 @@ def patch_tasks_source(
             ),
         ))
         descriptions.append("deferred task steps dispatched by nested Qt event loops")
+    elif TASKS_SELF_REENTRANCY_MARKER not in source:
+        active_task_assignment = find_active_task_assignment(step_method)
+        self_reentrancy_guard = f'''\
+
+        # {TASKS_SELF_REENTRANCY_MARKER}
+        # Drop synchronous callbacks that try to advance the task which is
+        # already running. Its yielded future will schedule the real next step.
+        if active_task is self:
+            return
+'''
+        insertion_line = (
+            active_task_assignment.end_lineno or active_task_assignment.lineno
+        )
+        edits.append(LineEdit(
+            start=insertion_line,
+            end=insertion_line,
+            replacement=self_reentrancy_guard,
+            description="discard premature self-reentrant task steps",
+        ))
+        descriptions.append("made task re-entrancy handling self-step safe")
 
     modified = apply_line_edits(source, edits) if edits else source
     try:
@@ -939,6 +985,7 @@ def verify_sources(environment: EnvironmentInfo) -> list[str]:
 
     for marker in (
         TASKS_REENTRANCY_GUARD_MARKER,
+        TASKS_SELF_REENTRANCY_MARKER,
         TASKS_REENTRANCY_DRAIN_MARKER,
     ):
         if marker not in tasks:

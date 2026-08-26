@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import browser_cookie3
 
 from src.backend import clients
+from base_api.modules.config import IteratorConfig
 from base_api.modules.logger import configure_app_logging
 from src.backend.errors import CookiesNotFound, LoginError
 from xhamster_api.modules.errors import LoginFailed as xhLoginFailed
@@ -19,6 +20,11 @@ from pornhub_api.modules.errors import LoginFailed, ClientAlreadyLogged
 logger = configure_app_logging(logger_name="PornFetch - [Login Manager]")
 
 _XVIDEOS_LOGIN_COOKIES = ("session_token", "session_token_auth")
+
+
+def _account_video_iterator_config() -> IteratorConfig:
+    """Load the HTML metadata consumed by the shared video-list pipeline."""
+    return IteratorConfig(load_specific_sources=("html",))
 
 
 def provider_is_logged_in(provider: str) -> bool:
@@ -47,16 +53,30 @@ def get_account_video_iterator(
     if provider_key == "pornhub":
         account = clients.ph_client.account
         if collection_key == "history":
-            return account.get_history(), "PornHub watch history"
+            return (
+                account.get_history(iterator_config=_account_video_iterator_config()),
+                "PornHub watch history",
+            )
         if collection_key == "recommended":
-            return account.get_recommended(), "PornHub recommendations"
+            return (
+                account.get_recommended(iterator_config=_account_video_iterator_config()),
+                "PornHub recommendations",
+            )
         if collection_key == "favorites":
-            return account.get_favorites(), "PornHub favorites"
+            return (
+                account.get_favorites(iterator_config=_account_video_iterator_config()),
+                "PornHub favorites",
+            )
 
     elif provider_key == "xhamster":
         account = clients.xh_client.account
         if collection_key == "liked":
-            return account.get_liked_videos(), "XHamster liked videos"
+            return (
+                account.get_liked_videos(
+                    iterator_config=_account_video_iterator_config()
+                ),
+                "XHamster liked videos",
+            )
         if collection_key == "playlist":
             parsed_url = urlparse(playlist_url.strip())
             hostname = (parsed_url.hostname or "").casefold()
@@ -67,7 +87,10 @@ def get_account_video_iterator(
             ):
                 raise LoginError("Please enter a valid XHamster account playlist URL.")
             return (
-                account.get_account_playlist(url=playlist_url.strip()),
+                account.get_account_playlist(
+                    url=playlist_url.strip(),
+                    iterator_config=_account_video_iterator_config(),
+                ),
                 "XHamster account playlist",
             )
 

@@ -38,8 +38,8 @@ class SettingsManager(QObject):
     themeChanged = Signal(int)
     reloadClients = Signal(object)
     restartRequired = Signal()
-    databaseChanged = Signal(str)
-    moveDatabase = Signal(str, str)
+    pocketbaseDataPathChanged = Signal(str)
+    movePocketBaseData = Signal(str, str)
 
     # For Theming
     coreStyleChanged = Signal(str)
@@ -335,20 +335,23 @@ class SettingsManager(QObject):
             self.trackVideosChanged.emit(val)
             self.restartRequired.emit()
 
-    @Property(str, notify=databaseChanged)
-    def database_path(self) -> str:
-        return self.get_str("Video/database_path", "./downloads.db")
+    @Property(str, notify=pocketbaseDataPathChanged)
+    def pocketbase_data_path(self) -> str:
+        return self.get_str("Video/pocketbase_data_path", "./pocketbase_data")
 
-    @database_path.setter
-    def database_path(self, val):
-        if val != self.database_path:
-
-            current_path = self.database_path
-
-            self._settings.setValue("Video/database_path", val)
-            self.databaseChanged.emit(val)
+    @pocketbase_data_path.setter
+    def pocketbase_data_path(self, val):
+        if val != self.pocketbase_data_path:
+            current_path = self.pocketbase_data_path
+            self._settings.setValue("Video/pocketbase_data_path", val)
+            self.pocketbaseDataPathChanged.emit(val)
             self.restartRequired.emit()
-            self.moveDatabase.emit(current_path, val)
+            self.movePocketBaseData.emit(current_path, val)
+
+    @property
+    def legacy_database_path(self) -> str:
+        """Previous Peewee/SQLite path, retained only for the one-time import."""
+        return self.get_str("Video/database_path", "./downloads.db")
 
     # Performance related
     @Property(int, notify=downloadWorkersChanged)

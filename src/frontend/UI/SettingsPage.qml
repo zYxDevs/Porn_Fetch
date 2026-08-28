@@ -51,21 +51,17 @@ Pane {
         }
     }
 
-    Dialogs.FileDialog {
-        id: databaseFileDialog
+    Dialogs.FolderDialog {
+        id: pocketbaseFolderDialog
 
-        title: qsTr("Choose or create a database")
-        fileMode: Dialogs.FileDialog.SaveFile
-        nameFilters: [qsTr("SQLite databases (*.db)"), qsTr("All files (*)")]
-        defaultSuffix: "db"
-        acceptLabel: qsTr("Use Database")
-        currentFolder: appSettings.parent_directory_url(appSettings.database_path)
-        currentFile: appSettings.path_to_file_url(appSettings.database_path)
+        title: qsTr("Choose a PocketBase data folder")
+        acceptLabel: qsTr("Use Folder")
+        currentFolder: appSettings.parent_directory_url(appSettings.pocketbase_data_path)
 
         onAccepted: {
-            var selectedPath = appSettings.local_path_from_url(selectedFile)
+            var selectedPath = appSettings.local_path_from_url(selectedFolder)
             if (selectedPath !== "")
-                appSettings.database_path = selectedPath
+                appSettings.pocketbase_data_path = selectedPath
         }
     }
 
@@ -412,7 +408,7 @@ Pane {
                                 CheckBox {
                                     Layout.columnSpan: 2
                                     Layout.fillWidth: true
-                                    text: "Track Videos (SQLite Database)"
+                                    text: "Track Videos (PocketBase)"
                                     checked: appSettings.track_videos
                                     onToggled: appSettings.track_videos = checked
                                 }
@@ -420,7 +416,7 @@ Pane {
                                 Item { Layout.fillWidth: false } // Empty spacer for 1st column alignment
                                 Label {
                                     Layout.fillWidth: false
-                                    text: "Database Path"
+                                    text: "PocketBase Data Folder"
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -428,15 +424,15 @@ Pane {
 
                                     TextField {
                                         id: databasePathInput
-                                        placeholderText: "Enter the path for the database (.db file)"
+                                        placeholderText: "Enter the PocketBase data directory"
                                         Layout.fillWidth: true
-                                        text: appSettings.database_path
-                                        onEditingFinished: appSettings.database_path = text
+                                        text: appSettings.pocketbase_data_path
+                                        onEditingFinished: appSettings.pocketbase_data_path = text
                                     }
                                     Button {
                                         Layout.fillWidth: false
-                                        text: qsTr("Choose Database…")
-                                        onClicked: databaseFileDialog.open()
+                                        text: qsTr("Choose Folder…")
+                                        onClicked: pocketbaseFolderDialog.open()
                                     }
                                 }
                             }

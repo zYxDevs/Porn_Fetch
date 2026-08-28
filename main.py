@@ -462,7 +462,9 @@ class Backend(QObject):
         self.auto_updater.statusReport.connect(self.updateStatus)
         self.showMessage.connect(self.handle_message)
         app_settings.restartRequired.connect(self.setting_requires_restart)
-        app_settings.moveDatabase.connect(self.database_changed)
+        self.database_bridge: DatabaseBridge | None = None
+        self._pending_pocketbase_move: tuple[Path, Path] | None = None
+        app_settings.movePocketBaseData.connect(self.pocketbase_data_changed)
         self._is_shutting_down = False
         self.ensure_temp()
 
@@ -605,25 +607,27 @@ class Backend(QObject):
         ...
 
     @Slot(str, str)
-    def database_changed(self, old_path: str, new_path: str) -> None:
-        old_database = Path(old_path).expanduser()
-        new_database = Path(new_path).expanduser()
-
-        if old_database == new_database:
+    def pocketbase_data_changed(self, old_path: str, new_path: str) -> None:
+        old_directory = Path(old_path).expanduser().resolve()
+        new_directory = Path(new_path).expanduser().resolve()
+        if old_directory == new_directory:
             return
-
-        new_database.parent.mkdir(parents=True, exist_ok=True)
-        if not old_database.is_file():
-            return
-
-        if new_database.exists():
+        if new_directory.exists():
             ui_popup(
-                "The selected database already exists, so the old database was not overwritten."
+                "The selected PocketBase data directory already exists. It will be used after restart, "
+                "but the current data will not be moved into it."
             )
             return
+        source = self._pending_pocketbase_move[0] if self._pending_pocketbase_move else old_directory
+        self._pending_pocketbase_move = (source, new_directory)
+        ui_popup("The PocketBase data directory will be moved after the application shuts down.")
 
-        shutil.move(str(old_database), str(new_database))
-        ui_popup("Your old database has been moved to the new path.")
+    @staticmethod
+    def _move_pocketbase_data(source: Path, destination: Path) -> None:
+        if not source.is_dir() or destination.exists():
+            return
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source), str(destination))
 
     @Slot()
     def cancel_fetching(self):
@@ -1381,6 +1385,10 @@ class Backend(QObject):
 
         await clients.close_all_clients()
         sni_proxy_manager.stop()
+        if self.database_bridge is not None:
+            await self.database_bridge.close()
+        if self._pending_pocketbase_move is not None:
+            await asyncio.to_thread(self._move_pocketbase_data, *self._pending_pocketbase_move)
 
         # If DownloadManager handles downloads in separate C++ threads or
         # distinct processes, tell it to stop here too.
@@ -1459,6 +1467,8 @@ def main() -> None:
 
 
     database_bridge = DatabaseBridge(parent=engine)
+    backend_instance.database_bridge = database_bridge
+    database_bridge.initializationFailed.connect(backend_instance.handle_message)
     # Database bridge is used for tracking the downloads / creating statistics (optional feature)
 
     # Download manager connects to QML to manage downloads and create the actual rows in the ListView

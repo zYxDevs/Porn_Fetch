@@ -372,7 +372,7 @@ Pane {
 
                         Label {
                             Layout.fillWidth: true
-                            text: qsTr("Statistics stay on this device in your configured SQLite database.")
+                            text: qsTr("Statistics stay on this device in your configured PocketBase data folder.")
                             color: root.subtleTextColor
                             wrapMode: Text.WordWrap
                         }

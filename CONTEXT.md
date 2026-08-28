@@ -87,7 +87,7 @@ Path: src/backend/
 - check_license.py -> Validates the imported license against a cryptographic asymetric public key
 - clients.py -> Holds helper functions and the clients which Porn Fetch uses to fetch data and interact with the websites
 - config.py -> Holds the global settings instance using QSettings, connected to the SettingsPage.qml using Signals
-- database.py -> Logic for setting up the database for the statistics part
+- database.py -> Async PocketBase process/client, schema, legacy SQLite import, and statistics persistence
 - download_manager.py -> Connects the backend which adds the videos into the download manager class which is connected to the QML frontend. 
 - errors.py -> Custom App errors to be raised inside the app
 - handle_ssl.py -> Legacy file for implementing SSL support per system using truststore (not needed anymore)

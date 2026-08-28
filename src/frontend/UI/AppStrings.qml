@@ -32,8 +32,8 @@ QtObject {
         qsTr("If enabled Porn Fetch will skip downloading already existing files otherwise the files will be replaced.")
 
     readonly property string trackVideosHelp:
-        qsTr("This feature will track videos in a SQLite Database. This feature is absolutely for advanced users. If you don't know
-        what an SQLite database is, then you absolutely don't need to enable this.
+        qsTr("This feature tracks videos in a local PocketBase data store. Porn Fetch starts the bundled PocketBase service only while
+        the application is running. If you don't need download history and statistics, you can leave it disabled.
 
         For Advanced Users see: https:// #TODO
         ")
